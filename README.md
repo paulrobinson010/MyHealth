@@ -222,12 +222,16 @@ Lookup needs a language model, a network and a battery that can afford several
 round trips. The Watch has none of those, and nobody wants to wait four seconds
 to log a pint. So the log doubles as a work queue:
 
-| | Watch | iPhone | Mac |
-| --- | --- | --- | --- |
-| Log instantly | ✅ | ✅ | ✅ |
-| Apple Intelligence | ✗ until watchOS 27 | ✅ | ✅ |
-| Runs the lookup loop | ✗ | ✅ | ✅ |
-| Full analysis and charts | ✗ | ✗ | ✅ |
+| | Watch | iPhone | iPad | Mac |
+| --- | --- | --- | --- | --- |
+| Log instantly | ✅ | ✅ | ✅ | ✅ |
+| Apple Intelligence | ✗ until watchOS 27 | ✅ | ✅ | ✅ |
+| Runs the lookup loop | ✗ | ✅ | ✅ | ✅ |
+| Deficit + integrity audit | ✗ | ✅ | ✅ | ✅ |
+| Full analysis and charts | ✗ | ✗ | ✅ | ✅ |
+
+The iPad runs the same target as the iPhone but lays out as a split view rather
+than a stretched phone app.
 
 The Watch logs against the built-in table and marks the entry `pending`.
 Whichever device next has the capability finishes it and syncs the corrected
@@ -239,6 +243,57 @@ silently thrown away every time the Watch's stale copy syncs back.
 
 ---
 
+## Sync
+
+The food log syncs through **CloudKit** in your own private database. Health
+data does not sync through this app at all — it comes from HealthKit on each
+device, through Apple's own sync.
+
+`NSUbiquitousKeyValueStore` was the first attempt and was wrong for this: 1 MB
+cap, best-effort delivery, no conflict resolution. A calorie ledger cannot be
+built on best-effort. The engine now guarantees four things, each with tests
+that fail if it stops holding:
+
+1. **A local write is never lost.** Changes land in a durable outbox *before*
+   any network call, so logging returns the moment it is safe on device. A
+   failed, cancelled or crashed sync leaves the outbox intact and the next
+   attempt resends it — including across a process death.
+2. **Nothing is counted twice.** Records are keyed by UUID and applying one
+   repeatedly is a no-op, so retrying after an ambiguous failure is always safe.
+3. **Conflicts resolve identically everywhere.** The higher-ranked version wins
+   — a looked-up entry beats the estimate it replaced — never the later clock,
+   because two devices' clocks disagree and later is not better. Reconciling the
+   same changes in opposite orders reaches the same state.
+4. **A deletion stays deleted.** Tombstones are held until the server
+   acknowledges them, so a stale copy elsewhere cannot resurrect a deleted meal.
+
+Change tokens make pulls incremental; an expired token triggers a full re-read
+rather than a guess about what was missed. Failures back off exponentially, and
+a slow poll backs up CloudKit's push notifications, which are best-effort — a
+dropped one would otherwise mean a pint logged at the bar never showing up.
+
+## Can you trust the deficit?
+
+A deficit is a small difference between two large, independently error-prone
+numbers, so it inherits the worst of both. Quoting one without saying what could
+be wrong with it is how a calorie tracker becomes confidently useless. So every
+deficit figure is shown with an audit above it, not buried in a footnote:
+
+| Check | Why it matters |
+| --- | --- |
+| Logging coverage | An unlogged day does not read as missing — it reads as a day you ate nothing. Under 60% and the figure is **blocked**, not caveated. |
+| Verified vs estimated calories | The share of logged calories that came from a real lookup rather than a guess. |
+| Weigh-in frequency | Without a weight trend this is arithmetic on an estimate, not a measurement. Under 8 weigh-ins and it is **blocked**. |
+| Predicted vs actual weight change | The one check that catches *systematic under-logging*, where coverage looks perfect and the number is still wrong. |
+| Measured vs estimated resting energy | A formula is wrong by 10–15% for any individual. |
+| Alcohol logged at all | The densest and most commonly forgotten calories there are. |
+
+Every finding carries a remedy, and the deficit is quoted with a plain error bar
+that widens as the evidence thins — described as exactly that, not dressed up as
+a statistical interval.
+
+---
+
 ## What it shows
 
 | Screen | What it answers |
@@ -247,7 +302,7 @@ silently thrown away every time the Watch's stale copy syncs back.
 | **Coach** | Am I fitter, in plain English — and the conversational food diary. |
 | **Fitness Rank** | How does my fitness now compare with every other period of my life? |
 | **Activity** | How much did I move — by day, week, month, weekday, and as a calendar heatmap? |
-| **Energy Balance** | Intake against expenditure, true maintenance, waist vs weight, what each kind of day costs. |
+| **Energy Balance** | Whether the deficit is trustworthy, then intake against expenditure, true maintenance, waist vs weight, what each kind of day costs. |
 | **Trends** | For any single metric: full history, rolling average, fitted trend line, year-on-year. |
 | **Workouts** | Every session, plus volume by activity and by month. |
 | **Body & Vitals** | VO₂ max, resting heart rate, HRV, weight, body composition, mobility. |
@@ -339,10 +394,11 @@ Packages/HealthCore/       shared by all three apps; pure Swift, no UI, no platf
     Analytics/             TimeSeries, TrendAnalysis, FitnessIndex, Rankings, EnergyBalance,
                            Correlation, OccasionAnalysis, FitnessNarrator
     Nutrition/             providers, validator, resolver, the agentic loop, resolution queue
+    Sync/                  the durable sync engine, outbox and conflict resolution
   Tests/HealthCoreTests/
 Packages/HealthIntelligence/  the only place FoundationModels appears; shared by Mac and iPhone
 MyHealth/                  the Mac app — full analysis, charts, import
-MyHealthPhone/             the iPhone app — logging and the lookup loop
+MyHealthPhone/             the iPhone and iPad app — logging, the lookup loop, the deficit audit
 MyHealthWatch/             the watchOS app — instant logging, no network
 Config/                    entitlements, one per target
 ```

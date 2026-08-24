@@ -116,8 +116,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var narrative: String?
 
     private let store: HealthStore
-    private var foodLogStore: FoodLogStore?
-    private let logSync = LogSync(backing: UbiquitousLogStore())
+    private var syncService: LogSyncService?
+    @Published private(set) var syncSummary = "Not synced yet"
+    @Published private(set) var syncIsHealthy = true
+    @Published private(set) var deficitIntegrity: DeficitIntegrity?
     private let coach = HealthCoach()
     private var logChangeObserver: NSObjectProtocol?
     private let importService = ImportService()
@@ -145,20 +147,25 @@ final class AppModel: ObservableObject {
         Task { await loadFromDisk() }
     }
 
-    /// iCloud posts this when the Watch writes a new food log, so a pint
-    /// logged at the bar shows up here without anyone pressing refresh.
+    /// Polls for changes from the Watch and phone.
+    ///
+    /// CloudKit push notifications are the efficient signal, but they are
+    /// best-effort and a dropped one would mean a pint logged at the bar never
+    /// appearing. A slow poll costs almost nothing and removes that failure.
     private func observeWatchLogs() {
         guard logChangeObserver == nil else { return }
-        logChangeObserver = NotificationCenter.default.addObserver(
-            forName: UbiquitousLogStore.didChangeNotification,
-            object: nil,
-            queue: .main) { [weak self] _ in
-                Task { @MainActor in await self?.refreshFoodLogFromSync() }
+        logChangeObserver = NSNull()
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(180))
+                guard let self else { return }
+                await self.refreshFoodLogFromSync()
             }
+        }
     }
 
     private func loadFromDisk() async {
-        loadFoodLog()
+        await loadFoodLog()
         do {
             if let stored = try store.load() {
                 await apply(stored, kind: stored.sourceFileName == "HealthKit" ? .healthKit : .exportFile, persist: false)
@@ -203,6 +210,13 @@ final class AppModel: ObservableObject {
         }.value
 
         analytics = computed
+        if let energy = computed.energy {
+            let recentRange = combined.dateRange.map {
+                max($0.upperBound.adding(days: -89), $0.lowerBound)...$0.upperBound
+            }
+            deficitIntegrity = DeficitAudit.audit(report: energy, log: log,
+                                                  database: combined, range: recentRange)
+        }
         loadState = .idle
 
         // The written summary is generated from the numbers first and only then
@@ -247,36 +261,49 @@ final class AppModel: ObservableObject {
         let (updated, report) = await queue.process(snapshot)
         // Merge rather than assign: the phone may have synced something new
         // while the lookups were running.
-        foodLog = LogSync.merge(local: foodLog, remote: updated)
+        let merged = LogSync.merge(local: foodLog, remote: updated)
+        let corrected = merged.entries.filter { $0.provenance != nil }
+        foodLog = merged
+        if let service = syncService {
+            foodLog = await service.replace(with: merged, uploading: corrected)
+        }
         lastResolutionReport = report
-        saveFoodLog()
         if report.improved > 0, let database { await analyse(database) }
     }
 
     // MARK: - Food log
 
-    private func loadFoodLog() {
+    private func loadFoodLog() async {
         do {
-            let store = FoodLogStore(fileURL: try FoodLogStore.defaultURL())
-            foodLogStore = store
-            foodLog = (try store.load()) ?? FoodLog()
+            let service = LogSyncService(
+                store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
+                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
+            syncService = service
+            foodLog = await service.currentLog
         } catch {
             lastError = "Could not open the food log: \(error.localizedDescription)"
         }
-        if let remote = logSync.pull() {
-            foodLog = LogSync.merge(local: foodLog, remote: remote)
-            saveFoodLog(push: false)
-        }
     }
 
-    /// Called when the Watch writes a new log to iCloud.
+    /// Pulls anything logged on the Watch or phone, and pushes what is queued.
     func refreshFoodLogFromSync() async {
-        guard let remote = logSync.pull() else { return }
-        let merged = LogSync.merge(local: foodLog, remote: remote)
-        guard merged.entries.count != foodLog.entries.count else { return }
-        foodLog = merged
-        saveFoodLog(push: false)
-        if let database { await analyse(database) }
+        guard let service = syncService else { return }
+        let before = foodLog.entries.count
+        _ = await service.sync()
+        foodLog = await service.currentLog
+        let status = await service.status()
+        syncSummary = status.summary
+        syncIsHealthy = status.isHealthy
+
+        if foodLog.entries.count != before, let database { await analyse(database) }
+        await resolvePendingNutrition()
+    }
+
+    func fullResync() async {
+        guard let service = syncService else { return }
+        await service.uploadEverything()
+        await refreshFoodLogFromSync()
     }
 
     func addEntries(_ entries: [FoodEntry], context: MealContext, venueName: String?) async {
@@ -285,15 +312,21 @@ final class AppModel: ObservableObject {
                                     evidence: venueName == nil ? .inferred : .stated,
                                     venueName: venueName,
                                     start: entries.map(\.timestamp).min() ?? Date().timeIntervalSince1970)
-        for entry in entries { foodLog.add(entry, to: occasion) }
-        saveFoodLog()
+        if let service = syncService {
+            foodLog = await service.record(entries, occasion: occasion)
+        } else {
+            for entry in entries { foodLog.add(entry, to: occasion) }
+        }
         if let database { await analyse(database) }
         await resolvePendingNutrition()
     }
 
     func removeEntry(_ id: UUID) async {
-        foodLog.remove(entryID: id)
-        saveFoodLog()
+        if let service = syncService {
+            foodLog = await service.delete(id)
+        } else {
+            foodLog.remove(entryID: id)
+        }
         if let database { await analyse(database) }
     }
 
@@ -315,17 +348,10 @@ final class AppModel: ObservableObject {
                 entryIDs: entries.map(\.id)))
             foodLog.occasions.sort { $0.start < $1.start }
         }
-        saveFoodLog()
-        if let database { await analyse(database) }
-    }
-
-    private func saveFoodLog(push: Bool = true) {
-        do {
-            try foodLogStore?.save(foodLog)
-        } catch {
-            lastError = "Could not save the food log: \(error.localizedDescription)"
+        if let service = syncService {
+            foodLog = await service.replace(with: foodLog, uploading: [])
         }
-        if push { logSync.push(foodLog) }
+        if let database { await analyse(database) }
     }
 
     // MARK: - HealthKit

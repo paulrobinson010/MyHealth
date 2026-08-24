@@ -14,26 +14,28 @@ final class WatchModel: ObservableObject {
     @Published var confirmation: String?
 
     private let writer = HealthKitLogWriter()
-    private let sync = LogSync(backing: UbiquitousLogStore())
-    private var store: FoodLogStore?
+    /// Durable locally the moment it is tapped; iCloud when there is a chance.
+    /// A watch is offline more often than not, so a log that waited on the
+    /// network would be a log nobody trusts.
+    private var service: LogSyncService?
+    @Published private(set) var syncSummary = ""associated
 
     var today: DayKey { .today }
 
     func start() async {
         do {
-            let url = try FoodLogStore.defaultURL()
-            let store = FoodLogStore(fileURL: url)
-            self.store = store
-            if let saved = try store.load() { log = saved }
+            let service = LogSyncService(
+                store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
+                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
+            self.service = service
+            log = await service.currentLog
         } catch {
             lastError = "Could not open the local log: \(error.localizedDescription)"
         }
 
-        // Anything logged on the Mac should be here too.
-        if let remote = sync.pull() {
-            log = LogSync.merge(local: log, remote: remote)
-        }
         recomputeToday()
+        await syncNow()
 
         do {
             try await writer.requestAuthorization()
@@ -88,8 +90,11 @@ final class WatchModel: ObservableObject {
         // the Watch is the wrong place to interrogate someone mid-pint.
         let guess = classify(adding: entry)
         let occasion = currentOccasion(for: guess, at: entry.date)
-        log.add(entry, to: occasion)
-        persist()
+        if let service {
+            log = await service.record([entry], occasion: occasion)
+        } else {
+            log.add(entry, to: occasion)
+        }
         recomputeToday()
 
         do {
@@ -116,10 +121,13 @@ final class WatchModel: ObservableObject {
         }
     }
 
-    func undoLast() {
+    func undoLast() async {
         guard let last = log.entries.last else { return }
-        log.remove(entryID: last.id)
-        persist()
+        if let service {
+            log = await service.delete(last.id)
+        } else {
+            log.remove(entryID: last.id)
+        }
         recomputeToday()
         confirmation = "Removed \(last.name)"
         // The HealthKit sample stays; deleting it needs share authorisation for
@@ -181,12 +189,14 @@ final class WatchModel: ObservableObject {
                             start: date.timeIntervalSince1970)
     }
 
-    private func persist() {
-        do {
-            try store?.save(log)
-        } catch {
-            lastError = "Could not save the log: \(error.localizedDescription)"
-        }
-        sync.push(log)
+    /// Pushes and pulls. Cheap enough to run on wake, and the only way a pint
+    /// logged at the bar reaches the phone before the phone is next opened.
+    func syncNow() async {
+        guard let service else { return }
+        _ = await service.sync()
+        log = await service.currentLog
+        let status = await service.status()
+        syncSummary = status.summary
+        recomputeToday()
     }
 }

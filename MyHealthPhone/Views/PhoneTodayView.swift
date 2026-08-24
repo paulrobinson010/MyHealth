@@ -54,9 +54,8 @@ struct PhoneTodayView: View {
                         EntryRow(entry: entry)
                     }
                     .onDelete { offsets in
-                        for index in offsets {
-                            model.remove(model.todayEntries[index].id)
-                        }
+                        let ids = offsets.map { model.todayEntries[$0].id }
+                        Task { for id in ids { await model.remove(id) } }
                     }
                 }
             }

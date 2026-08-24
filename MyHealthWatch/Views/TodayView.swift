@@ -46,7 +46,7 @@ struct TodayView: View {
                         }
                     }
                     Button("Undo last", systemImage: "arrow.uturn.backward") {
-                        model.undoLast()
+                        Task { await model.undoLast() }
                     }
                     .font(.caption2)
                     .buttonStyle(.bordered)

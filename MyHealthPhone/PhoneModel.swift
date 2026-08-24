@@ -20,9 +20,13 @@ final class PhoneModel: ObservableObject {
         didSet { PhoneDefaults.foodDataCentralKey = foodDataCentralKey }
     }
 
-    private let sync = LogSync(backing: UbiquitousLogStore())
-    private var store: FoodLogStore?
-    private var observer: NSObjectProtocol?
+    /// Durable local write first, iCloud after — never the other way round.
+    private var service: LogSyncService?
+    @Published private(set) var syncSummary = "Not synced yet"
+    @Published private(set) var syncIsHealthy = true
+    @Published private(set) var integrity: DeficitIntegrity?
+    @Published private(set) var energy: EnergyBalanceReport?
+    private var syncTimer: Task<Void, Never>?
 
     var today: DayKey { .today }
     var todayEntries: [FoodEntry] { log.entries(on: today).reversed() }
@@ -44,43 +48,77 @@ final class PhoneModel: ObservableObject {
 
     func start() async {
         do {
-            let store = FoodLogStore(fileURL: try FoodLogStore.defaultURL())
-            self.store = store
-            if let saved = try store.load() { log = saved }
+            let service = LogSyncService(
+                store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
+                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
+            self.service = service
+            log = await service.currentLog
         } catch {
             lastError = "Could not open the local log: \(error.localizedDescription)"
         }
 
-        observeSync()
+        recomputeToday()
         await refreshAndResolve()
+        startPeriodicSync()
 
-        if #available(iOS 17.0, *) {
-            do { try await HealthKitLogWriter().requestAuthorization() }
-            catch { lastError = error.localizedDescription }
+        do { try await HealthKitLogWriter().requestAuthorization() }
+        catch { lastError = error.localizedDescription }
+    }
+
+    /// A periodic pull as well as an on-foreground one.
+    ///
+    /// CloudKit push notifications are the efficient way to hear about a change
+    /// from another device, but they are best-effort — they get dropped, and a
+    /// dropped notification would mean a pint logged on the Watch never showing
+    /// up. A slow poll is the belt to that braces.
+    private func startPeriodicSync() {
+        syncTimer?.cancel()
+        syncTimer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(120))
+                guard !Task.isCancelled else { return }
+                await self?.refreshAndResolve()
+            }
         }
     }
 
-    private func observeSync() {
-        guard observer == nil else { return }
-        observer = NotificationCenter.default.addObserver(
-            forName: UbiquitousLogStore.didChangeNotification,
-            object: nil,
-            queue: .main) { [weak self] _ in
-                Task { @MainActor in await self?.refreshAndResolve() }
-            }
-    }
-
-    /// Pull whatever the Watch logged, then finish off anything still pending.
+    /// Pull whatever another device logged, then finish off anything pending.
     func refreshAndResolve() async {
-        if let remote = sync.pull() {
-            let merged = LogSync.merge(local: log, remote: remote)
-            if merged.entries.count != log.entries.count {
-                log = merged
-                persist(push: false)
-            }
+        guard let service else { return }
+        let result = await service.sync()
+        log = await service.currentLog
+        let status = await service.status()
+        syncSummary = status.summary
+        syncIsHealthy = status.isHealthy
+
+        if let error = result.error, !error.isTransient {
+            lastError = error.localizedDescription
         }
+
         recomputeToday()
         await resolvePending()
+        await refreshBalance()
+    }
+
+    /// Recomputes the deficit and, more importantly, whether it can be trusted.
+    func refreshBalance() async {
+        guard HealthKitSource.availability.isUsable else { return }
+        let source = HealthKitSource()
+        do {
+            try await source.requestAuthorization()
+            let start = DayKey.today.adding(days: -89)
+            let database = try await source.buildDatabase(from: start)
+            let combined = database.merging(log)
+            let range = start...DayKey.today
+            let report = EnergyBalance.report(for: combined, range: range)
+            energy = report
+            integrity = DeficitAudit.audit(report: report, log: log,
+                                           database: combined, range: range)
+        } catch {
+            // Not fatal — logging still works without the balance view.
+            energy = nil
+        }
     }
 
     // MARK: - Resolution
@@ -107,9 +145,13 @@ final class PhoneModel: ObservableObject {
 
         // Anything logged while the lookup was running has to survive it, so
         // merge rather than assign.
-        log = LogSync.merge(local: log, remote: updated)
+        let merged = LogSync.merge(local: log, remote: updated)
+        let corrected = merged.entries.filter { entry in
+            outstanding.contains { $0.id == entry.id } && entry.provenance != nil
+        }
+        log = merged
+        if let service { _ = await service.replace(with: merged, uploading: corrected) }
         lastReport = report
-        persist()
         recomputeToday()
 
         // The Health app copy has to follow the correction, or the deficit
@@ -136,31 +178,39 @@ final class PhoneModel: ObservableObject {
         let occasion = context.map {
             MealOccasion(context: $0, evidence: .stated, start: entry.timestamp)
         }
-        log.add(entry, to: occasion)
-        persist()
+
+        // Durable locally before anything else is attempted, so a dead network
+        // or a crash mid-write cannot lose a meal.
+        if let service {
+            log = await service.record([entry], occasion: occasion)
+        } else {
+            log.add(entry, to: occasion)
+        }
         recomputeToday()
 
-        if #available(iOS 17.0, *) {
-            do { try await HealthKitLogWriter().write(entry) }
-            catch { lastError = "Saved locally, but HealthKit refused it: \(error.localizedDescription)" }
-        }
+        do { try await HealthKitLogWriter().write(entry) }
+        catch { lastError = "Saved locally, but HealthKit refused it: \(error.localizedDescription)" }
 
         await resolvePending()
+        Task { await refreshAndResolve() }
     }
 
-    func remove(_ id: UUID) {
-        log.remove(entryID: id)
-        persist()
+    func remove(_ id: UUID) async {
+        if let service {
+            log = await service.delete(id)
+        } else {
+            log.remove(entryID: id)
+        }
         recomputeToday()
+    }
+
+    func fullResync() async {
+        guard let service else { return }
+        await service.uploadEverything()
+        await refreshAndResolve()
     }
 
     private func recomputeToday() { todayTotal = log.total(on: today) }
-
-    private func persist(push: Bool = true) {
-        do { try store?.save(log) }
-        catch { lastError = "Could not save the log: \(error.localizedDescription)" }
-        if push { sync.push(log) }
-    }
 }
 
 enum PhoneDefaults {

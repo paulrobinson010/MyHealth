@@ -16,6 +16,7 @@ struct NutritionView: View {
                         Spacer()
                         DateRangePicker(selection: $range)
                     }
+                    integrity
                     calibration
                     balanceChart
                     HStack(alignment: .top, spacing: Theme.gridSpacing) {
@@ -33,6 +34,92 @@ struct NutritionView: View {
     }
 
     private var report: EnergyBalanceReport? { model.analytics.energy }
+
+    // MARK: - Integrity
+
+    /// Whether the deficit below can be trusted, and precisely why not.
+    ///
+    /// This sits above the number on purpose. A deficit is a small difference
+    /// between two large error-prone quantities, and presenting one without its
+    /// caveats is how a calorie tracker ends up confidently wrong.
+    @ViewBuilder
+    private var integrity: some View {
+        if let audit = model.deficitIntegrity {
+            Card("Can you trust this?",
+                 subtitle: "\(audit.loggedDays) of \(audit.totalDays) days logged · \(Int(audit.verifiedCalorieShare * 100))% of calories looked up rather than estimated") {
+                HStack(alignment: .top, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(audit.confidence.title, systemImage: symbol(for: audit.confidence))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(colour(for: audit.confidence))
+                        if let range = audit.uncertaintyRange, audit.dailyDeficit != nil {
+                            Text(String(format: "Deficit is somewhere between %.0f and %.0f kcal a day.",
+                                        range.lowerBound, range.upperBound))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .frame(width: 230, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(audit.findings) { finding in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(finding.message, systemImage: symbol(for: finding.impact))
+                                    .font(.callout)
+                                    .foregroundStyle(colour(for: finding.impact))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if let remedy = finding.remedy {
+                                    Text(remedy)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                        if audit.findings.isEmpty {
+                            Text("Nothing is undermining the figure below.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+    }
+
+    private func symbol(for confidence: DeficitIntegrity.Confidence) -> String {
+        switch confidence {
+        case .solid: return "checkmark.seal.fill"
+        case .indicative: return "exclamationmark.circle"
+        case .unreliable: return "xmark.octagon"
+        }
+    }
+
+    private func colour(for confidence: DeficitIntegrity.Confidence) -> Color {
+        switch confidence {
+        case .solid: return Theme.color(for: .improving)
+        case .indicative: return .orange
+        case .unreliable: return Theme.color(for: .declining)
+        }
+    }
+
+    private func symbol(for impact: DeficitIntegrity.Finding.Impact) -> String {
+        switch impact {
+        case .blocking: return "xmark.octagon"
+        case .caution: return "exclamationmark.triangle"
+        case .note: return "info.circle"
+        }
+    }
+
+    private func colour(for impact: DeficitIntegrity.Finding.Impact) -> Color {
+        switch impact {
+        case .blocking: return Theme.color(for: .declining)
+        case .caution: return .orange
+        case .note: return .secondary
+        }
+    }
 
     // MARK: - Calibration
 

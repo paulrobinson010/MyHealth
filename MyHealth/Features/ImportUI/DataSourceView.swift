@@ -229,6 +229,20 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("iCloud") {
+                    Text(model.syncSummary)
+                        .foregroundStyle(model.syncIsHealthy ? .secondary : .orange)
+                }
+                Button("Sync now") { Task { await model.refreshFoodLogFromSync() } }
+                Button("Re-upload everything") { Task { await model.fullResync() } }
+            } header: {
+                Text("Food log sync")
+            } footer: {
+                Text("Entries are saved on this Mac the instant you log them and uploaded afterwards, so losing connection never loses one. Only the food log syncs through iCloud — your health data comes from HealthKit on each device.")
+                .font(.caption)
+            }
+
+            Section {
                 Toggle("Look up food online", isOn: $model.allowNetworkLookups)
                 if model.allowNetworkLookups {
                     SecureField("FoodData Central API key (optional)",

@@ -17,7 +17,7 @@ import HealthKit
 public enum HealthKitAvailability {
     case available
     case requiresNewerMacOS
-    case unavailableOnThisMac
+    case unavailableOnThisDevice
     case notBuiltWithHealthKit
 
     public var message: String {
@@ -25,9 +25,9 @@ public enum HealthKitAvailability {
         case .available:
             return "HealthKit is available on this Mac."
         case .requiresNewerMacOS:
-            return "Native HealthKit access needs macOS 26 (Tahoe) or later. You can still import an export.zip from your iPhone."
-        case .unavailableOnThisMac:
-            return "HealthKit reports no health data store on this Mac. Check that iCloud Health sync is turned on and that you are signed into the same Apple Account as your iPhone."
+            return "Native HealthKit access on the Mac needs macOS 26 (Tahoe) or later. You can still import an export.zip from your iPhone."
+        case .unavailableOnThisDevice:
+            return "HealthKit reports no health data store on this device. Check that Health data is available and that you are signed into the same Apple Account across your devices."
         case .notBuiltWithHealthKit:
             return "This build was compiled without HealthKit. Rebuild with the macOS 26 SDK or later, or import an export.zip instead."
         }
@@ -59,10 +59,16 @@ public enum HealthKitError: LocalizedError {
 public enum HealthKitBridge {
     public static var availability: HealthKitAvailability {
         #if canImport(HealthKit)
+        // Every platform but the Mac has had HealthKit for years; only macOS
+        // needs a version gate, and it needs 26.
+        #if os(macOS)
         if #available(macOS 26.0, *) {
-            return HKHealthStore.isHealthDataAvailable() ? .available : .unavailableOnThisMac
+            return HKHealthStore.isHealthDataAvailable() ? .available : .unavailableOnThisDevice
         }
         return .requiresNewerMacOS
+        #else
+        return HKHealthStore.isHealthDataAvailable() ? .available : .unavailableOnThisDevice
+        #endif
         #else
         return .notBuiltWithHealthKit
         #endif
@@ -71,7 +77,7 @@ public enum HealthKitBridge {
 
 #if canImport(HealthKit)
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 17.0, watchOS 10.0, *)
 public actor HealthKitSource {
 
     /// The quantity types MyHealth reads, with the unit each is requested in

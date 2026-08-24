@@ -33,6 +33,22 @@ struct PhoneSettingsView: View {
 
                 Section {
                     HStack {
+                        Text("iCloud")
+                        Spacer()
+                        Text(model.syncSummary)
+                            .foregroundStyle(model.syncIsHealthy ? .secondary : .orange)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    Button("Sync now") { Task { await model.refreshAndResolve() } }
+                    Button("Re-upload everything") { Task { await model.fullResync() } }
+                } header: {
+                    Text("Sync")
+                } footer: {
+                    Text("Your log is saved on this device the moment you log it, and uploaded afterwards. Losing connection never loses an entry — it waits in a queue and goes up when you are back online.")
+                }
+
+                Section {
+                    HStack {
                         Text("Waiting to be looked up")
                         Spacer()
                         Text("\(model.pendingCount)").foregroundStyle(.secondary)
