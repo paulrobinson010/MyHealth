@@ -1,4 +1,5 @@
 import Foundation
+import HealthCore
 #if canImport(HealthKit)
 import HealthKit
 #endif
@@ -162,8 +163,40 @@ public actor HealthKitSource {
             .init(metric: .runningVerticalOscillation, identifier: .runningVerticalOscillation,
                   unit: .meterUnit(with: .centi), options: .discreteAverage),
             .init(metric: .runningGroundContactTime, identifier: .runningGroundContactTime,
-                  unit: .secondUnit(with: .milli), options: .discreteAverage)
+                  unit: .secondUnit(with: .milli), options: .discreteAverage),
+
+            .init(metric: .dietaryEnergy, identifier: .dietaryEnergyConsumed,
+                  unit: .kilocalorie(), options: .cumulativeSum),
+            .init(metric: .dietaryProtein, identifier: .dietaryProtein,
+                  unit: .gram(), options: .cumulativeSum),
+            .init(metric: .dietaryCarbohydrates, identifier: .dietaryCarbohydrates,
+                  unit: .gram(), options: .cumulativeSum),
+            .init(metric: .dietaryFat, identifier: .dietaryFatTotal,
+                  unit: .gram(), options: .cumulativeSum),
+            .init(metric: .dietaryFibre, identifier: .dietaryFiber,
+                  unit: .gram(), options: .cumulativeSum),
+            .init(metric: .dietarySugar, identifier: .dietarySugar,
+                  unit: .gram(), options: .cumulativeSum),
+            .init(metric: .dietaryWater, identifier: .dietaryWater,
+                  unit: .liter(), options: .cumulativeSum),
+            .init(metric: .alcoholicDrinks, identifier: .numberOfAlcoholicBeverages,
+                  unit: .count(), options: .cumulativeSum)
         ]
+    }
+
+    /// The sample types MyHealth writes. Logging on the Watch writes these, and
+    /// they then reach the Mac through the ordinary iCloud Health sync rather
+    /// than any private channel of our own.
+    static var writeTypes: Set<HKSampleType> {
+        var types = Set<HKSampleType>()
+        for identifier: HKQuantityTypeIdentifier in [
+            .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal,
+            .dietaryFiber, .dietarySugar, .dietaryWater, .numberOfAlcoholicBeverages,
+            .bodyMass, .waistCircumference
+        ] {
+            types.insert(HKQuantityType(identifier))
+        }
+        return types
     }
 
     private static var readTypes: Set<HKObjectType> {
@@ -188,7 +221,7 @@ public actor HealthKitSource {
         guard HealthKitSource.availability.isUsable else {
             throw HealthKitError.unavailable(HealthKitSource.availability)
         }
-        try await healthStore.requestAuthorization(toShare: Set<HKSampleType>(),
+        try await healthStore.requestAuthorization(toShare: HealthKitSource.writeTypes,
                                                   read: HealthKitSource.readTypes)
     }
 

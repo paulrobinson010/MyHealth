@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import HealthCore
 
 /// Small headline number with an optional trend arrow underneath.
 struct StatTile: View {

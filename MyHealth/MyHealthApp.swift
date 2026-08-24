@@ -1,4 +1,5 @@
 import SwiftUI
+import HealthCore
 
 @main
 struct MyHealthApp: App {
@@ -38,13 +39,15 @@ struct MyHealthApp: App {
 
 /// Sections in the sidebar.
 enum Screen: String, CaseIterable, Identifiable, Hashable {
-    case dashboard, fitness, activity, trends, workouts, body, data
+    case dashboard, coach, fitness, activity, nutrition, trends, workouts, body, data
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .dashboard: return "Dashboard"
+        case .coach: return "Coach"
+        case .nutrition: return "Energy Balance"
         case .fitness: return "Fitness Rank"
         case .activity: return "Activity"
         case .trends: return "Trends"
@@ -57,6 +60,8 @@ enum Screen: String, CaseIterable, Identifiable, Hashable {
     var symbolName: String {
         switch self {
         case .dashboard: return "square.grid.2x2"
+        case .coach: return "bubble.left.and.text.bubble.right"
+        case .nutrition: return "fork.knife"
         case .fitness: return "trophy"
         case .activity: return "flame"
         case .trends: return "chart.xyaxis.line"
@@ -84,6 +89,8 @@ struct RootView: View {
             Group {
                 switch screen ?? .dashboard {
                 case .dashboard: DashboardView()
+                case .coach: CoachView()
+                case .nutrition: NutritionView()
                 case .fitness: FitnessRankView()
                 case .activity: ActivityView()
                 case .trends: TrendsView()

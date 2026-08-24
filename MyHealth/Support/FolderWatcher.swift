@@ -1,4 +1,5 @@
 import Foundation
+import HealthCore
 
 /// Watches a directory and fires when its contents change.
 ///

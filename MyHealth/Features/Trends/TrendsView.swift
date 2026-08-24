@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import HealthCore
 
 /// Pick any metric, see its whole history with a fitted trend line and the
 /// numbers that say whether the movement is real.

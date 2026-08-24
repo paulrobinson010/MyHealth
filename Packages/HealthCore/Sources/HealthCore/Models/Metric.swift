@@ -14,7 +14,7 @@ public enum Aggregation: String, Codable, Sendable {
 }
 
 public enum MetricCategory: String, Codable, CaseIterable, Sendable {
-    case activity, heart, body, fitness, mobility, wellbeing
+    case activity, heart, body, fitness, nutrition, mobility, wellbeing
 
     public var title: String {
         switch self {
@@ -22,6 +22,7 @@ public enum MetricCategory: String, Codable, CaseIterable, Sendable {
         case .heart: return "Heart"
         case .body: return "Body"
         case .fitness: return "Fitness"
+        case .nutrition: return "Nutrition"
         case .mobility: return "Mobility"
         case .wellbeing: return "Wellbeing"
         }
@@ -84,6 +85,17 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
     case runningVerticalOscillation
     case runningGroundContactTime
 
+    // Nutrition
+    case dietaryEnergy
+    case dietaryProtein
+    case dietaryCarbohydrates
+    case dietaryFat
+    case dietaryFibre
+    case dietarySugar
+    case dietaryWater
+    case alcoholGrams
+    case alcoholicDrinks
+
     // Wellbeing
     case sleepHours
     case timeInDaylight
@@ -137,6 +149,15 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
         case .runningStrideLength: return "Running Stride Length"
         case .runningVerticalOscillation: return "Vertical Oscillation"
         case .runningGroundContactTime: return "Ground Contact Time"
+        case .dietaryEnergy: return "Calories Eaten"
+        case .dietaryProtein: return "Protein"
+        case .dietaryCarbohydrates: return "Carbohydrates"
+        case .dietaryFat: return "Fat"
+        case .dietaryFibre: return "Fibre"
+        case .dietarySugar: return "Sugar"
+        case .dietaryWater: return "Water"
+        case .alcoholGrams: return "Alcohol"
+        case .alcoholicDrinks: return "Drinks"
         case .sleepHours: return "Sleep"
         case .timeInDaylight: return "Time in Daylight"
         case .mindfulMinutes: return "Mindful Minutes"
@@ -150,9 +171,12 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
     /// Canonical unit after import-time normalisation.
     public var unit: String {
         switch self {
-        case .steps, .flightsClimbed, .workoutCount: return "count"
+        case .steps, .flightsClimbed, .workoutCount, .alcoholicDrinks: return "count"
         case .walkingRunningDistance, .cyclingDistance, .swimmingDistance, .workoutDistance: return "km"
-        case .activeEnergy, .basalEnergy, .workoutEnergy: return "kcal"
+        case .activeEnergy, .basalEnergy, .workoutEnergy, .dietaryEnergy: return "kcal"
+        case .dietaryProtein, .dietaryCarbohydrates, .dietaryFat, .dietaryFibre,
+             .dietarySugar, .alcoholGrams: return "g"
+        case .dietaryWater: return "L"
         case .exerciseMinutes, .moveMinutes, .mindfulMinutes, .workoutMinutes, .timeInDaylight: return "min"
         case .standHours: return "hr"
         case .sleepHours: return "hr"
@@ -179,7 +203,9 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
         case .steps, .walkingRunningDistance, .cyclingDistance, .swimmingDistance, .flightsClimbed,
              .activeEnergy, .basalEnergy, .exerciseMinutes, .standHours, .moveMinutes,
              .sleepHours, .timeInDaylight, .mindfulMinutes,
-             .workoutMinutes, .workoutEnergy, .workoutDistance, .workoutCount:
+             .workoutMinutes, .workoutEnergy, .workoutDistance, .workoutCount,
+             .dietaryEnergy, .dietaryProtein, .dietaryCarbohydrates, .dietaryFat,
+             .dietaryFibre, .dietarySugar, .dietaryWater, .alcoholGrams, .alcoholicDrinks:
             return .sum
         case .heartRateMin:
             return .minimum
@@ -200,7 +226,8 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
              .respiratoryRate, .bodyFatPercentage, .waistCircumference,
              .bloodPressureSystolic, .bloodPressureDiastolic,
              .walkingAsymmetry, .walkingDoubleSupport, .runningGroundContactTime,
-             .runningVerticalOscillation, .bodyMassIndex, .bodyMass:
+             .runningVerticalOscillation, .bodyMassIndex, .bodyMass,
+             .alcoholGrams, .alcoholicDrinks, .dietarySugar:
             return false
         default:
             return true
@@ -222,6 +249,9 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
             return .body
         case .sleepHours, .timeInDaylight, .mindfulMinutes:
             return .wellbeing
+        case .dietaryEnergy, .dietaryProtein, .dietaryCarbohydrates, .dietaryFat,
+             .dietaryFibre, .dietarySugar, .dietaryWater, .alcoholGrams, .alcoholicDrinks:
+            return .nutrition
         case .walkingSpeed, .walkingStepLength, .walkingAsymmetry, .walkingDoubleSupport,
              .stairAscentSpeed, .stairDescentSpeed, .walkingSteadiness,
              .runningPower, .runningSpeed, .runningStrideLength, .runningVerticalOscillation,
@@ -233,6 +263,8 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
     public var fractionDigits: Int {
         switch self {
         case .steps, .flightsClimbed, .activeEnergy, .basalEnergy, .workoutEnergy, .workoutCount,
+             .dietaryEnergy, .dietaryProtein, .dietaryCarbohydrates, .dietaryFat, .dietaryFibre,
+             .dietarySugar, .alcoholGrams,
              .runningPower, .sixMinuteWalk, .bloodPressureSystolic, .bloodPressureDiastolic,
              .runningGroundContactTime:
             return 0

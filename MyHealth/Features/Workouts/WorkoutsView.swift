@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import HealthCore
 
 struct WorkoutsView: View {
     @EnvironmentObject private var model: AppModel

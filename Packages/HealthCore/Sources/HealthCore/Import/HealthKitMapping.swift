@@ -44,7 +44,15 @@ public enum HealthKitMapping {
         "RunningStrideLength": .runningStrideLength,
         "RunningVerticalOscillation": .runningVerticalOscillation,
         "RunningGroundContactTime": .runningGroundContactTime,
-        "TimeInDaylight": .timeInDaylight
+        "TimeInDaylight": .timeInDaylight,
+        "DietaryEnergyConsumed": .dietaryEnergy,
+        "DietaryProtein": .dietaryProtein,
+        "DietaryCarbohydrates": .dietaryCarbohydrates,
+        "DietaryFatTotal": .dietaryFat,
+        "DietaryFiber": .dietaryFibre,
+        "DietarySugar": .dietarySugar,
+        "DietaryWater": .dietaryWater,
+        "NumberOfAlcoholicBeverages": .alcoholicDrinks
     ]
 
     /// Heart rate feeds three metrics at once (mean, min, max) so it is handled
@@ -96,6 +104,24 @@ public enum HealthKitMapping {
             switch unit {
             case "min": return value / 60
             case "s", "sec": return value / 3600
+            default: return value
+            }
+        case "g":
+            switch unit {
+            case "mg": return value / 1000
+            case "mcg", "µg": return value / 1_000_000
+            case "kg": return value * 1000
+            case "oz": return value * 28.349_523_125
+            default: return value
+            }
+        case "L":
+            switch unit {
+            case "mL": return value / 1000
+            case "fl_oz_us": return value * 0.029_573_53
+            case "fl_oz_imp": return value * 0.028_413_06
+            case "cup_us": return value * 0.236_588_24
+            case "pt_us": return value * 0.473_176_47
+            case "pt_imp": return value * 0.568_261_25
             default: return value
             }
         case "m":

@@ -60,6 +60,27 @@ public struct HealthDatabase: Codable, Sendable {
         return TimeSeries(metric: metric, points: points)
     }
 
+    /// Folds locally logged food and drink into the daily summaries.
+    ///
+    /// The log wins over HealthKit for these metrics: an entry logged here is
+    /// the original, and the HealthKit copy is what this app wrote out from it.
+    public func merging(_ log: FoodLog) -> HealthDatabase {
+        let derived = log.dailyMetrics()
+        guard !derived.isEmpty else { return self }
+
+        var byOrdinal: [Int: DailySummary] = [:]
+        for summary in days { byOrdinal[summary.day.ordinal] = summary }
+        for (ordinal, values) in derived {
+            var summary = byOrdinal[ordinal] ?? DailySummary(day: DayKey(ordinal: ordinal))
+            for (metric, value) in values { summary.values[metric] = value }
+            byOrdinal[ordinal] = summary
+        }
+
+        var copy = self
+        copy.days = byOrdinal.values.sorted { $0.day < $1.day }
+        return copy
+    }
+
     /// Metrics that actually carry data, in a stable order — used to build the
     /// Trends picker so it only offers things worth looking at.
     public func availableMetrics(minimumDays: Int = 5) -> [Metric] {

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import HealthCore
 
 /// Precomputed analysis of the loaded database.
 ///
@@ -14,19 +15,48 @@ struct Analytics: Sendable {
     var years: [RankedPeriod] = []
     var topMovers: [MetricTrend] = []
     var componentAverages: [FitnessComponent] = []
+    var energy: EnergyBalanceReport?
+    var composition: EnergyBalance.BodyCompositionSignal?
+    var occasions: [OccasionImpact] = []
+    var hangover: OccasionAnalysis.HangoverProfile?
+    var correlations: [Correlation] = []
+    var briefing: FitnessNarrator.Briefing?
 
-    static func build(from database: HealthDatabase) -> Analytics {
+    static func build(from database: HealthDatabase, log: FoodLog) -> Analytics {
         let index = FitnessIndex(database: database)
         let scores = index.history()
         let recent = scores.suffix(90).map { $0 }
+        let standing = Rankings.standing(from: scores)
+        let components = Rankings.componentAverages(from: recent)
+        let movers = TrendAnalysis.topMovers(in: database, window: 28, limit: 6)
+
+        // The last 90 days is the window worth reconciling: long enough for a
+        // weight trend to be real, short enough to describe how you live now.
+        let recentRange = database.dateRange.map {
+            max($0.upperBound.adding(days: -89), $0.lowerBound)...$0.upperBound
+        }
+        let energy = EnergyBalance.report(for: database, range: recentRange)
+        let composition = EnergyBalance.bodyComposition(for: database, range: recentRange)
+
         return Analytics(
             fitnessScores: scores,
-            standing: Rankings.standing(from: scores),
+            standing: standing,
             months: Rankings.rankedPeriods(from: scores, bucket: .month, minimumDays: 10),
             quarters: Rankings.rankedPeriods(from: scores, bucket: .quarter, minimumDays: 25),
             years: Rankings.rankedPeriods(from: scores, bucket: .year, minimumDays: 60),
-            topMovers: TrendAnalysis.topMovers(in: database, window: 28, limit: 6),
-            componentAverages: Rankings.componentAverages(from: recent))
+            topMovers: movers,
+            componentAverages: components,
+            energy: energy,
+            composition: composition,
+            occasions: OccasionAnalysis.impacts(log: log, database: database),
+            hangover: OccasionAnalysis.hangoverProfile(for: database),
+            correlations: CorrelationAnalysis.strongestRelationships(
+                for: .alcoholGrams, in: database, lags: [0, 1], limit: 6),
+            briefing: FitnessNarrator.brief(standing: standing,
+                                            components: components,
+                                            trends: movers,
+                                            energy: energy,
+                                            composition: composition))
     }
 }
 
@@ -70,7 +100,15 @@ final class AppModel: ObservableObject {
         didSet { Defaults.autoSyncOnLaunch = autoSyncOnLaunch }
     }
 
+    @Published private(set) var foodLog = FoodLog()
+    /// Prose written by Apple Intelligence, when it is available.
+    @Published private(set) var narrative: String?
+
     private let store: HealthStore
+    private var foodLogStore: FoodLogStore?
+    private let logSync = LogSync(backing: UbiquitousLogStore())
+    private let coach = HealthCoach()
+    private var logChangeObserver: NSObjectProtocol?
     private let importService = ImportService()
     private let cancellation = CancellationFlag()
     private var folderWatcher: FolderWatcher?
@@ -92,10 +130,24 @@ final class AppModel: ObservableObject {
 
     func onAppear() {
         guard database == nil, !loadState.isWorking else { return }
+        observeWatchLogs()
         Task { await loadFromDisk() }
     }
 
+    /// iCloud posts this when the Watch writes a new food log, so a pint
+    /// logged at the bar shows up here without anyone pressing refresh.
+    private func observeWatchLogs() {
+        guard logChangeObserver == nil else { return }
+        logChangeObserver = NotificationCenter.default.addObserver(
+            forName: UbiquitousLogStore.didChangeNotification,
+            object: nil,
+            queue: .main) { [weak self] _ in
+                Task { @MainActor in await self?.refreshFoodLogFromSync() }
+            }
+    }
+
     private func loadFromDisk() async {
+        loadFoodLog()
         do {
             if let stored = try store.load() {
                 await apply(stored, kind: stored.sourceFileName == "HealthKit" ? .healthKit : .exportFile, persist: false)
@@ -120,19 +172,108 @@ final class AppModel: ObservableObject {
         database = merged
         sourceKind = kind
         loadState = .working(fraction: 0.97, message: "Analysing…")
-
-        let computed = await Task.detached(priority: .userInitiated) {
-            Analytics.build(from: merged)
-        }.value
-
-        analytics = computed
-        loadState = .idle
+        await analyse(merged)
 
         if persist, kind != .sample {
             do { try store.save(merged) } catch {
                 lastError = "Could not save the database: \(error.localizedDescription)"
             }
         }
+    }
+
+    /// Rebuilds every derived figure. Runs off the main actor because the
+    /// fitness history alone is hundreds of thousands of window rollups.
+    private func analyse(_ database: HealthDatabase) async {
+        let log = foodLog
+        let combined = database.merging(log)
+        let computed = await Task.detached(priority: .userInitiated) {
+            Analytics.build(from: combined, log: log)
+        }.value
+
+        analytics = computed
+        loadState = .idle
+
+        // The written summary is generated from the numbers first and only then
+        // handed to the model to phrase, so there is always an answer on screen.
+        if let briefing = computed.briefing {
+            narrative = briefing.plainText
+            let rewritten = await coach.narrate(briefing)
+            if rewritten != narrative { narrative = rewritten }
+        }
+    }
+
+    // MARK: - Food log
+
+    private func loadFoodLog() {
+        do {
+            let store = FoodLogStore(fileURL: try FoodLogStore.defaultURL())
+            foodLogStore = store
+            foodLog = (try store.load()) ?? FoodLog()
+        } catch {
+            lastError = "Could not open the food log: \(error.localizedDescription)"
+        }
+        if let remote = logSync.pull() {
+            foodLog = LogSync.merge(local: foodLog, remote: remote)
+            saveFoodLog(push: false)
+        }
+    }
+
+    /// Called when the Watch writes a new log to iCloud.
+    func refreshFoodLogFromSync() async {
+        guard let remote = logSync.pull() else { return }
+        let merged = LogSync.merge(local: foodLog, remote: remote)
+        guard merged.entries.count != foodLog.entries.count else { return }
+        foodLog = merged
+        saveFoodLog(push: false)
+        if let database { await analyse(database) }
+    }
+
+    func addEntries(_ entries: [FoodEntry], context: MealContext, venueName: String?) async {
+        guard !entries.isEmpty else { return }
+        let occasion = MealOccasion(context: context,
+                                    evidence: venueName == nil ? .inferred : .stated,
+                                    venueName: venueName,
+                                    start: entries.map(\.timestamp).min() ?? Date().timeIntervalSince1970)
+        for entry in entries { foodLog.add(entry, to: occasion) }
+        saveFoodLog()
+        if let database { await analyse(database) }
+    }
+
+    func removeEntry(_ id: UUID) async {
+        foodLog.remove(entryID: id)
+        saveFoodLog()
+        if let database { await analyse(database) }
+    }
+
+    /// Corrects the occasion for a day after the fact — the Mac is where you
+    /// fix "that was actually the pub", not the Watch.
+    func setContext(_ context: MealContext, venueName: String?, on day: DayKey) async {
+        if let index = foodLog.occasions.firstIndex(where: { $0.day == day }) {
+            foodLog.occasions[index].context = context
+            foodLog.occasions[index].evidence = .stated
+            foodLog.occasions[index].venueName = venueName
+        } else {
+            let entries = foodLog.entries(on: day)
+            guard !entries.isEmpty else { return }
+            foodLog.occasions.append(MealOccasion(
+                context: context,
+                evidence: .stated,
+                venueName: venueName,
+                start: entries.map(\.timestamp).min() ?? day.localDate().timeIntervalSince1970,
+                entryIDs: entries.map(\.id)))
+            foodLog.occasions.sort { $0.start < $1.start }
+        }
+        saveFoodLog()
+        if let database { await analyse(database) }
+    }
+
+    private func saveFoodLog(push: Bool = true) {
+        do {
+            try foodLogStore?.save(foodLog)
+        } catch {
+            lastError = "Could not save the food log: \(error.localizedDescription)"
+        }
+        if push { logSync.push(foodLog) }
     }
 
     // MARK: - HealthKit

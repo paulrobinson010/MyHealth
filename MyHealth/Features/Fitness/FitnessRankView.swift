@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import HealthCore
 
 /// The "how fit am I, and how does that compare with every other stretch of my
 /// life" screen: the index over time, what is driving it, and a leaderboard of

@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
+import HealthCore
 
 /// Where the data comes from, and how to keep it fresh.
 struct DataSourceView: View {

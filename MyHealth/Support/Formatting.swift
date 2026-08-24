@@ -1,4 +1,5 @@
 import Foundation
+import HealthCore
 
 enum Format {
 
@@ -35,6 +36,12 @@ enum Format {
         guard let value, value.isFinite else { return "—" }
         if abs(value) < 0.05 { return "0" }
         return (value > 0 ? "+" : "−") + decimal(abs(value), fractionDigits: fractionDigits)
+    }
+
+    /// "2", "1.5", "¼" — servings read badly as raw decimals.
+    static func servings(_ value: Double) -> String {
+        if abs(value - value.rounded()) < 0.01 { return decimal(value.rounded(), fractionDigits: 0) }
+        return decimal(value, fractionDigits: 1)
     }
 
     static func duration(minutes: Double) -> String {

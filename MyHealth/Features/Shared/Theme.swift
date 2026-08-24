@@ -1,4 +1,5 @@
 import SwiftUI
+import HealthCore
 
 enum Theme {
     static let cardCornerRadius: CGFloat = 12
@@ -20,6 +21,7 @@ enum Theme {
         case .heart: return Color(red: 0.83, green: 0.35, blue: 0.42)
         case .body: return Color(red: 0.46, green: 0.52, blue: 0.80)
         case .fitness: return Color(red: 0.30, green: 0.60, blue: 0.78)
+        case .nutrition: return Color(red: 0.85, green: 0.52, blue: 0.30)
         case .mobility: return Color(red: 0.79, green: 0.57, blue: 0.28)
         case .wellbeing: return Color(red: 0.52, green: 0.44, blue: 0.72)
         }
