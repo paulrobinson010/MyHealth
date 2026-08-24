@@ -60,7 +60,7 @@ public enum OccasionAnalysis {
         }
 
         let allOrdinals = database.days
-            .filter { range.map { r in r.contains($0.day) } ?? true }
+            .filter { summary in range?.contains(summary.day) ?? true }
             .map(\.day.ordinal)
 
         let typicalIntake = mean(allOrdinals.compactMap { value(.dietaryEnergy, on: $0) })
