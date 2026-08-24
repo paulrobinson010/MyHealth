@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import HealthCore
 import HealthIntelligence
+import HealthUI
 
 @MainActor
 final class PhoneModel: ObservableObject {
@@ -26,6 +27,8 @@ final class PhoneModel: ObservableObject {
     @Published private(set) var syncIsHealthy = true
     @Published private(set) var integrity: DeficitIntegrity?
     @Published private(set) var energy: EnergyBalanceReport?
+    @Published private(set) var healthDatabase: HealthDatabase?
+    @Published private(set) var fitnessScores: [FitnessScore] = []
     private var syncTimer: Task<Void, Never>?
 
     var today: DayKey { .today }
@@ -101,6 +104,17 @@ final class PhoneModel: ObservableObject {
         await refreshBalance()
     }
 
+    /// The combined fitness-and-body model, built from whatever has been read.
+    func progressModel(monthsBack months: Int) -> BodyAndFitnessView.Model? {
+        guard let database = healthDatabase else { return nil }
+        let range: ClosedRange<DayKey>? = months > 0
+            ? DayKey.today.adding(days: -months * 30)...DayKey.today
+            : nil
+        return BodyAndFitnessView.Model.build(database: database.merging(log),
+                                              scores: fitnessScores,
+                                              range: range)
+    }
+
     /// Recomputes the deficit and, more importantly, whether it can be trusted.
     func refreshBalance() async {
         guard HealthKitSource.availability.isUsable else { return }
@@ -113,8 +127,14 @@ final class PhoneModel: ObservableObject {
             let range = start...DayKey.today
             let report = EnergyBalance.report(for: combined, range: range)
             energy = report
+            healthDatabase = database
             integrity = DeficitAudit.audit(report: report, log: log,
                                            database: combined, range: range)
+
+            // The index is the expensive part, so it runs off the main actor.
+            fitnessScores = await Task.detached(priority: .utility) {
+                FitnessIndex(database: combined).history(stride: 3)
+            }.value
         } catch {
             // Not fatal — logging still works without the balance view.
             energy = nil

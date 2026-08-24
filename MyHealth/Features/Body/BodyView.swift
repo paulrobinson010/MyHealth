@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import HealthCore
+import HealthUI
 
 /// Heart, body composition and the vitals that move slowly.
 struct BodyView: View {

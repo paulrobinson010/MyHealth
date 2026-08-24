@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
 import HealthCore
+import HealthUI
 import HealthIntelligence
 
 /// Where the data comes from, and how to keep it fresh.

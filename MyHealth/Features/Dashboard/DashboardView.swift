@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import HealthCore
+import HealthUI
 
 struct DashboardView: View {
     @EnvironmentObject private var model: AppModel

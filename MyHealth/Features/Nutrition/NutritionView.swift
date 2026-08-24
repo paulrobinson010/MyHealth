@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import HealthCore
+import HealthUI
 
 /// The calorie ledger, and what it says about your actual maintenance.
 struct NutritionView: View {

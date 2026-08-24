@@ -63,6 +63,9 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
     case vo2Max
     case sixMinuteWalk
     case physicalEffort
+    /// The composite index, materialised as a metric so it can be trended and
+    /// correlated with everything else.
+    case fitnessIndex
 
     // Body
     case bodyMass
@@ -132,6 +135,7 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
         case .vo2Max: return "VO₂ Max"
         case .sixMinuteWalk: return "Six-Minute Walk"
         case .physicalEffort: return "Physical Effort"
+        case .fitnessIndex: return "Fitness Index"
         case .bodyMass: return "Weight"
         case .bodyFatPercentage: return "Body Fat"
         case .leanBodyMass: return "Lean Body Mass"
@@ -189,6 +193,7 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
         case .vo2Max: return "mL/kg·min"
         case .sixMinuteWalk: return "m"
         case .physicalEffort: return "MET"
+        case .fitnessIndex: return "index"
         case .bodyMass, .leanBodyMass: return "kg"
         case .bodyMassIndex: return "kg/m²"
         case .waistCircumference, .walkingStepLength, .runningStrideLength,
@@ -243,7 +248,7 @@ public enum Metric: String, Codable, CaseIterable, Sendable {
         case .restingHeartRate, .walkingHeartRate, .heartRateAverage, .heartRateMin, .heartRateMax,
              .hrv, .respiratoryRate, .oxygenSaturation, .bloodPressureSystolic, .bloodPressureDiastolic:
             return .heart
-        case .vo2Max, .sixMinuteWalk, .physicalEffort:
+        case .vo2Max, .sixMinuteWalk, .physicalEffort, .fitnessIndex:
             return .fitness
         case .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex, .waistCircumference:
             return .body

@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import HealthCore
+import HealthUI
 
 /// Everything you did, over whatever span you pick.
 struct ActivityView: View {

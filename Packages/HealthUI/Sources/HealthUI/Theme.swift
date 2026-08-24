@@ -1,11 +1,12 @@
 import SwiftUI
 import HealthCore
+import HealthCore
 
-enum Theme {
-    static let cardCornerRadius: CGFloat = 12
-    static let gridSpacing: CGFloat = 16
+public enum Theme {
+    public static let cardCornerRadius: CGFloat = 12
+    public static let gridSpacing: CGFloat = 16
 
-    static func color(for band: FitnessBand) -> Color {
+    public static func color(for band: FitnessBand) -> Color {
         switch band {
         case .needsWork: return Color(red: 0.85, green: 0.42, blue: 0.35)
         case .fair: return Color(red: 0.90, green: 0.64, blue: 0.28)
@@ -15,7 +16,7 @@ enum Theme {
         }
     }
 
-    static func color(for category: MetricCategory) -> Color {
+    public static func color(for category: MetricCategory) -> Color {
         switch category {
         case .activity: return Color(red: 0.36, green: 0.66, blue: 0.44)
         case .heart: return Color(red: 0.83, green: 0.35, blue: 0.42)
@@ -27,7 +28,7 @@ enum Theme {
         }
     }
 
-    static func color(for direction: TrendDirection) -> Color {
+    public static func color(for direction: TrendDirection) -> Color {
         switch direction {
         case .improving: return Color(red: 0.24, green: 0.62, blue: 0.38)
         case .declining: return Color(red: 0.80, green: 0.34, blue: 0.32)
@@ -36,7 +37,7 @@ enum Theme {
     }
 
     /// Ramp used by the calendar heatmap, low to high.
-    static func heatColor(_ intensity: Double?) -> Color {
+    public static func heatColor(_ intensity: Double?) -> Color {
         guard let intensity else { return Color.secondary.opacity(0.08) }
         let clamped = intensity.clamped(to: 0...1)
         return Color(red: 0.32 + 0.10 * clamped,
@@ -47,23 +48,23 @@ enum Theme {
 }
 
 /// Standard card chrome so every panel in the app matches.
-struct Card<Content: View>: View {
+public struct Card<Content: View>: View {
     var title: String? = nil
     var subtitle: String? = nil
     var accessory: AnyView? = nil
     @ViewBuilder var content: Content
 
-    init(_ title: String? = nil,
-         subtitle: String? = nil,
-         accessory: AnyView? = nil,
-         @ViewBuilder content: () -> Content) {
+    public init(_ title: String? = nil,
+                subtitle: String? = nil,
+                accessory: AnyView? = nil,
+                @ViewBuilder content: () -> Content) {
         self.title = title
         self.subtitle = subtitle
         self.accessory = accessory
         self.content = content()
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if title != nil || subtitle != nil {
                 HStack(alignment: .firstTextBaseline) {

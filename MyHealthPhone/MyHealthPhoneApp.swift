@@ -41,7 +41,7 @@ struct PhoneRootView: View {
     @State private var section: Section? = .today
 
     enum Section: String, CaseIterable, Identifiable, Hashable {
-        case today, log, balance, settings
+        case today, log, progress, balance, settings
 
         var id: String { rawValue }
 
@@ -49,6 +49,7 @@ struct PhoneRootView: View {
             switch self {
             case .today: return "Today"
             case .log: return "Log"
+            case .progress: return "Progress"
             case .balance: return "Energy Balance"
             case .settings: return "Settings"
             }
@@ -58,6 +59,7 @@ struct PhoneRootView: View {
             switch self {
             case .today: return "square.grid.2x2"
             case .log: return "text.bubble"
+            case .progress: return "chart.line.uptrend.xyaxis"
             case .balance: return "flame"
             case .settings: return "gearshape"
             }
@@ -83,6 +85,8 @@ struct PhoneRootView: View {
                     .tabItem { Label("Today", systemImage: "square.grid.2x2") }
                 PhoneLogView()
                     .tabItem { Label("Log", systemImage: "text.bubble") }
+                PhoneProgressView()
+                    .tabItem { Label("Progress", systemImage: "chart.line.uptrend.xyaxis") }
                 PhoneBalanceView()
                     .tabItem { Label("Balance", systemImage: "flame") }
                 PhoneSettingsView()
@@ -96,6 +100,7 @@ struct PhoneRootView: View {
         switch section {
         case .today: PhoneTodayView()
         case .log: PhoneLogView()
+        case .progress: PhoneProgressView()
         case .balance: PhoneBalanceView()
         case .settings: PhoneSettingsView()
         }
