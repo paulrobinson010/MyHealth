@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
 import HealthCore
+import HealthIntelligence
 
 /// Where the data comes from, and how to keep it fresh.
 struct DataSourceView: View {
@@ -224,6 +225,34 @@ struct SettingsView: View {
                     Text("No folder is being watched. Set one up on the Data Source screen.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                Toggle("Look up food online", isOn: $model.allowNetworkLookups)
+                if model.allowNetworkLookups {
+                    SecureField("FoodData Central API key (optional)",
+                                text: $model.foodDataCentralKey)
+                }
+                LabeledContent("Waiting to be looked up") {
+                    Text("\(model.pendingLookupCount)")
+                }
+                Button("Look up now") {
+                    Task { await model.resolvePendingNutrition() }
+                }
+                .disabled(model.isResolvingNutrition || model.pendingLookupCount == 0)
+            } header: {
+                Text("Nutrition lookups")
+            } footer: {
+                Text(model.allowNetworkLookups
+                     ? "Food names you log are sent to Open Food Facts — and to USDA FoodData Central if you add a key — to fetch real nutrition figures. Only the name of the food is sent. Never your health data, your weight, your location or anything about where you were."
+                     : "Switched off: nothing leaves this Mac. Nutrition comes from the built-in table and, where Apple Intelligence is available, its own estimates.")
+                .font(.caption)
+            }
+
+            Section("What is switched on") {
+                ForEach(model.lookupCapabilities, id: \.self) { line in
+                    Label(line, systemImage: "checkmark.circle").font(.caption)
                 }
             }
 

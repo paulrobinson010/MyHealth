@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import HealthCore
+import HealthIntelligence
 
 /// Precomputed analysis of the loaded database.
 ///
@@ -99,6 +100,16 @@ final class AppModel: ObservableObject {
     @Published var autoSyncOnLaunch: Bool = Defaults.autoSyncOnLaunch {
         didSet { Defaults.autoSyncOnLaunch = autoSyncOnLaunch }
     }
+    /// Opt-in. Off by default, because switching it on means food names leave
+    /// the machine.
+    @Published var allowNetworkLookups: Bool = Defaults.allowNetworkLookups {
+        didSet { Defaults.allowNetworkLookups = allowNetworkLookups }
+    }
+    @Published var foodDataCentralKey: String = Defaults.foodDataCentralKey {
+        didSet { Defaults.foodDataCentralKey = foodDataCentralKey }
+    }
+    @Published private(set) var isResolvingNutrition = false
+    @Published private(set) var lastResolutionReport: ResolutionQueue.Report?
 
     @Published private(set) var foodLog = FoodLog()
     /// Prose written by Apple Intelligence, when it is available.
@@ -159,6 +170,7 @@ final class AppModel: ObservableObject {
         if autoSyncOnLaunch, healthKitAvailability.isUsable, sourceKind != .sample {
             await syncFromHealthKit(silently: true)
         }
+        await resolvePendingNutrition()
     }
 
     private func apply(_ incoming: HealthDatabase, kind: DataSourceKind, persist: Bool) async {
@@ -202,6 +214,45 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: - Nutrition lookup
+
+    var lookupSettings: ResolverFactory.Settings {
+        ResolverFactory.Settings(allowNetworkLookups: allowNetworkLookups,
+                                 foodDataCentralKey: foodDataCentralKey)
+    }
+
+    var lookupCapabilities: [String] {
+        ResolverFactory.describeCapabilities(settings: lookupSettings)
+    }
+
+    var pendingLookupCount: Int {
+        ResolutionQueue(resolver: ResolverFactory.makeResolver(settings: lookupSettings))
+            .pending(in: foodLog).count
+    }
+
+    /// Finishes off entries that were logged as estimates.
+    ///
+    /// The same queue runs on the phone. Whichever device gets to an entry
+    /// first wins, and because resolution replaces an entry's figures rather
+    /// than adding to them, both running at once is harmless.
+    func resolvePendingNutrition() async {
+        guard !isResolvingNutrition else { return }
+        let queue = ResolutionQueue(resolver: ResolverFactory.makeResolver(settings: lookupSettings))
+        guard !queue.pending(in: foodLog).isEmpty else { return }
+
+        isResolvingNutrition = true
+        defer { isResolvingNutrition = false }
+
+        let snapshot = foodLog
+        let (updated, report) = await queue.process(snapshot)
+        // Merge rather than assign: the phone may have synced something new
+        // while the lookups were running.
+        foodLog = LogSync.merge(local: foodLog, remote: updated)
+        lastResolutionReport = report
+        saveFoodLog()
+        if report.improved > 0, let database { await analyse(database) }
+    }
+
     // MARK: - Food log
 
     private func loadFoodLog() {
@@ -237,6 +288,7 @@ final class AppModel: ObservableObject {
         for entry in entries { foodLog.add(entry, to: occasion) }
         saveFoodLog()
         if let database { await analyse(database) }
+        await resolvePendingNutrition()
     }
 
     func removeEntry(_ id: UUID) async {
@@ -463,6 +515,16 @@ enum Defaults {
     static var autoSyncOnLaunch: Bool {
         get { store.object(forKey: "autoSyncOnLaunch") as? Bool ?? true }
         set { store.set(newValue, forKey: "autoSyncOnLaunch") }
+    }
+
+    static var allowNetworkLookups: Bool {
+        get { store.bool(forKey: "allowNetworkLookups") }   // opt-in: defaults to false
+        set { store.set(newValue, forKey: "allowNetworkLookups") }
+    }
+
+    static var foodDataCentralKey: String {
+        get { store.string(forKey: "foodDataCentralKey") ?? "" }
+        set { store.set(newValue, forKey: "foodDataCentralKey") }
     }
 
     static var watchedFolderBookmark: Data? {

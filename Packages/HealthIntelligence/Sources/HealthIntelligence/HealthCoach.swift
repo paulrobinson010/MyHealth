@@ -39,9 +39,11 @@ public enum IntelligenceAvailability: Equatable {
 /// separately does the one job it is genuinely better at than code — turning
 /// "three pints and a curry" into structured nutrition.
 @MainActor
-final class HealthCoach {
+public final class HealthCoach {
 
-    static var availability: IntelligenceAvailability {
+    public init() {}
+
+    public static var availability: IntelligenceAvailability {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) {
             switch SystemLanguageModel.default.availability {
@@ -69,7 +71,7 @@ final class HealthCoach {
     /// Rewrites a deterministic briefing as prose. Returns the briefing's own
     /// plain text if the model is unavailable or declines — the reader always
     /// gets an answer.
-    func narrate(_ briefing: FitnessNarrator.Briefing) async -> String {
+    public func narrate(_ briefing: FitnessNarrator.Briefing) async -> String {
         #if canImport(FoundationModels)
         guard #available(macOS 26.0, *), HealthCoach.availability.isUsable else {
             return briefing.plainText
@@ -196,15 +198,15 @@ struct AgentTurn {
 
 /// The result of one turn, in terms the app understands. Defined outside the
 /// Foundation Models conditional so the UI compiles either way.
-struct CoachTurn {
-    var reply: String
-    var followUpQuestion: String?
-    var context: MealContext
-    var venueName: String?
-    var venueConfidence: Double
-    var entries: [FoodEntry]
+public struct CoachTurn {
+    public var reply: String
+    public var followUpQuestion: String?
+    public var context: MealContext
+    public var venueName: String?
+    public var venueConfidence: Double
+    public var entries: [FoodEntry]
 
-    var hasItems: Bool { !entries.isEmpty }
+    public var hasItems: Bool { !entries.isEmpty }
 }
 
 /// The conversational food-and-drink logger.
@@ -213,7 +215,7 @@ struct CoachTurn {
 /// of those" resolves against what was said a moment ago, which is the whole
 /// reason to do this as a conversation rather than a form.
 @MainActor
-final class LoggingAgent {
+public final class LoggingAgent {
 
     #if canImport(FoundationModels)
     @available(macOS 26.0, *)
@@ -224,7 +226,9 @@ final class LoggingAgent {
     private var _session: Any?
     #endif
 
-    var availability: IntelligenceAvailability { HealthCoach.availability }
+    public init() {}
+
+    public var availability: IntelligenceAvailability { HealthCoach.availability }
 
     /// Everything the model needs to ground its calorie estimates, so it leans
     /// on our table for the common things rather than inventing numbers.
@@ -261,7 +265,7 @@ final class LoggingAgent {
         """
     }
 
-    func reset() {
+    public func reset() {
         #if canImport(FoundationModels)
         _session = nil
         #endif
@@ -269,7 +273,7 @@ final class LoggingAgent {
 
     /// The opening line. Deterministic, so the conversation starts instantly
     /// and identically whether or not the model is available.
-    func greeting(alreadyLogged: Nutrition?, timeOfDay: Int) -> String {
+    public func greeting(alreadyLogged: Nutrition?, timeOfDay: Int) -> String {
         let meal: String
         switch timeOfDay {
         case 5..<11: meal = "for breakfast"
@@ -284,7 +288,7 @@ final class LoggingAgent {
         return "What have you had \(meal)?"
     }
 
-    func send(_ text: String, at date: Date = Date()) async -> CoachTurn {
+    public func send(_ text: String, at date: Date = Date()) async -> CoachTurn {
         await respond(to: text.trimmingCharacters(in: .whitespacesAndNewlines), at: date)
     }
 
@@ -322,7 +326,8 @@ final class LoggingAgent {
                                            carbohydrateGrams: Double(item.carbohydrateGrams),
                                            fatGrams: Double(item.fatGrams),
                                            alcoholGrams: Double(item.alcoholGrams)),
-                      source: .naturalLanguage)
+                      source: .naturalLanguage,
+                      resolution: .pending)
         }
 
         let stated = turn.context.mealContext
@@ -392,7 +397,7 @@ final class LoggingAgent {
         if entries.isEmpty {
             reply = note ?? "I did not recognise anything in that. Try naming the item and the portion, or add it from the food list."
         } else {
-            let names = entries.map { $0.servings > 1 ? "\(Format.servings($0.servings)) × \($0.name)" : $0.name }
+            let names = entries.map { $0.servings > 1 ? "\(servingsText($0.servings)) × \($0.name)" : $0.name }
             reply = (note.map { $0 + " " } ?? "") + "Logged \(names.joined(separator: " and "))."
         }
 
@@ -402,6 +407,12 @@ final class LoggingAgent {
                          venueName: nil,
                          venueConfidence: guess.confidence,
                          entries: entries)
+    }
+
+    static func servingsText(_ value: Double) -> String {
+        abs(value - value.rounded()) < 0.01
+            ? String(Int(value.rounded()))
+            : String(format: "%.1f", value)
     }
 
     static func classify(_ entries: [FoodEntry], at date: Date) -> ContextClassifier.Guess {

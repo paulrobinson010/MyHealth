@@ -33,6 +33,17 @@ public struct LogSync {
     public init(backing: LogSyncBacking) { self.backing = backing }
 
     /// Trims a log to what is worth syncing.
+    /// How far through the lookup pipeline an entry has got, as a sortable
+    /// number. Higher wins a merge.
+    static func rank(_ state: ResolutionState?) -> Double {
+        switch state {
+        case .none: return 0
+        case .pending: return 1
+        case .unresolvable: return 2
+        case .resolved(let provenance): return 3 + provenance.confidence
+        }
+    }
+
     public static func prune(_ log: FoodLog, asOf today: DayKey = .today) -> FoodLog {
         let cutoff = today.adding(days: -windowDays)
         var pruned = FoodLog(
@@ -67,11 +78,23 @@ public struct LogSync {
     ///
     /// Entries carry stable UUIDs, so the union is unambiguous and the same
     /// entry syncing twice cannot double-count a meal.
+    ///
+    /// Where both sides hold the same entry, the better-resolved copy wins
+    /// rather than the local one. That matters more than it looks: the phone
+    /// finishes a lookup while the Watch is still holding the original
+    /// estimate, and a naive local-wins merge would quietly throw the corrected
+    /// figures away every time.
     public static func merge(local: FoodLog, remote: FoodLog) -> FoodLog {
         var entriesByID: [UUID: FoodEntry] = [:]
         for entry in local.entries { entriesByID[entry.id] = entry }
-        for entry in remote.entries where entriesByID[entry.id] == nil {
-            entriesByID[entry.id] = entry
+        for entry in remote.entries {
+            guard let existing = entriesByID[entry.id] else {
+                entriesByID[entry.id] = entry
+                continue
+            }
+            if rank(entry.resolution) > rank(existing.resolution) {
+                entriesByID[entry.id] = entry
+            }
         }
 
         var occasionsByID: [UUID: MealOccasion] = [:]

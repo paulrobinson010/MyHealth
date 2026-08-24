@@ -4,11 +4,11 @@ import HealthCore
 import HealthKit
 #endif
 
-enum WriterError: LocalizedError {
+public enum WriterError: LocalizedError {
     case unavailable
     case notAuthorised
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .unavailable:
             return "HealthKit is not available on this watch."
@@ -18,17 +18,25 @@ enum WriterError: LocalizedError {
     }
 }
 
-/// Writes logged food, drink and body measurements into HealthKit on the Watch.
+/// Writes logged food, drink and body measurements into HealthKit.
 ///
-/// Writing rather than keeping our own store is deliberate: it means the data
-/// shows up in the Health app alongside everything else, and it reaches the Mac
-/// through Apple's sync without this project needing a server or an account.
-actor HealthKitWriter {
+/// Shared by the Watch and the iPhone. Writing into HealthKit rather than
+/// keeping our own store is deliberate: the data shows up in the Health app
+/// alongside everything else, and it reaches the Mac through Apple's own sync
+/// without this project needing a server or an account.
+///
+/// Entries are tagged with a stable UUID in their metadata, so an entry
+/// corrected later by the resolution queue can be found and rewritten rather
+/// than written twice.
+@available(macOS 26.0, iOS 17.0, watchOS 10.0, *)
+public actor HealthKitLogWriter {
+
+    public init() {}
 
     #if canImport(HealthKit)
     private let store = HKHealthStore()
 
-    private static var shareTypes: Set<HKSampleType> {
+    static var shareTypes: Set<HKSampleType> {
         var types = Set<HKSampleType>()
         for identifier: HKQuantityTypeIdentifier in [
             .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal,
@@ -40,13 +48,13 @@ actor HealthKitWriter {
         return types
     }
 
-    func requestAuthorization() async throws {
+    public func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw WriterError.unavailable }
-        try await store.requestAuthorization(toShare: HealthKitWriter.shareTypes,
+        try await store.requestAuthorization(toShare: HealthKitLogWriter.shareTypes,
                                              read: Set<HKObjectType>())
     }
 
-    func write(_ entry: FoodEntry) async throws {
+    public func write(_ entry: FoodEntry) async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw WriterError.unavailable }
         let nutrition = entry.total
         let date = entry.date
@@ -59,7 +67,10 @@ actor HealthKitWriter {
                                             quantity: quantity,
                                             start: date,
                                             end: date,
-                                            metadata: [HKMetadataKeyFoodType: entry.name]))
+                                            metadata: [
+                                                HKMetadataKeyFoodType: entry.name,
+                                                HealthKitLogWriter.entryIDKey: entry.id.uuidString
+                                            ]))
         }
 
         add(.dietaryEnergyConsumed, .kilocalorie(), nutrition.kilocalories)
@@ -80,7 +91,29 @@ actor HealthKitWriter {
         try await store.save(samples)
     }
 
-    func writeBody(massKg: Double?, waistCm: Double?) async throws {
+    /// Our own metadata key, so an entry we wrote can be located again.
+    public static let entryIDKey = "com.myhealth.entryID"
+
+    /// Replaces the samples previously written for an entry. Used when the
+    /// resolution queue corrects a figure — otherwise a re-logged meal would
+    /// be counted twice in the Health app.
+    public func rewrite(_ entry: FoodEntry) async throws {
+        try await deleteSamples(forEntry: entry.id)
+        try await write(entry)
+    }
+
+    private func deleteSamples(forEntry id: UUID) async throws {
+        let predicate = HKQuery.predicateForObjects(
+            withMetadataKey: HealthKitLogWriter.entryIDKey,
+            operatorType: .equalTo,
+            value: id.uuidString)
+        for type in HealthKitLogWriter.shareTypes {
+            // A type with nothing to delete throws; that is not a failure here.
+            _ = try? await store.deleteObjects(of: type, predicate: predicate)
+        }
+    }
+
+    public func writeBody(massKg: Double?, waistCm: Double?) async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw WriterError.unavailable }
         let now = Date()
         var samples: [HKSample] = []
@@ -102,8 +135,10 @@ actor HealthKitWriter {
         try await store.save(samples)
     }
     #else
-    func requestAuthorization() async throws { throw WriterError.unavailable }
-    func write(_ entry: FoodEntry) async throws { throw WriterError.unavailable }
-    func writeBody(massKg: Double?, waistCm: Double?) async throws { throw WriterError.unavailable }
+    public static let entryIDKey = "com.myhealth.entryID"
+    public func requestAuthorization() async throws { throw WriterError.unavailable }
+    public func write(_ entry: FoodEntry) async throws { throw WriterError.unavailable }
+    public func rewrite(_ entry: FoodEntry) async throws { throw WriterError.unavailable }
+    public func writeBody(massKg: Double?, waistCm: Double?) async throws { throw WriterError.unavailable }
     #endif
 }

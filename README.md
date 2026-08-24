@@ -60,11 +60,17 @@ measurement. So the architecture enforces the division rather than trusting it:
 | Writing that conclusion up readably | The model, handed the findings and forbidden from adding any |
 | Turning "three pints and a curry" into structured nutrition | The model — this is what it is genuinely good at |
 | Deciding you were at the pub | `ContextClassifier` first; the model may propose, but a low-confidence guess loses to the classifier |
+| Reformulating a failed food search | The model — an open-ended language problem, run in a loop |
+| Deciding a looked-up figure is good enough | `NutritionValidator` — deterministic, and the only thing that can end the loop |
 
 Every one of those has a working path with Apple Intelligence switched off. The
-verdict falls back to generated English, and the food diary falls back to
-keyword matching against the built-in tables. The Coach screen says which is in
-use rather than quietly degrading.
+verdict falls back to generated English, the food diary falls back to keyword
+matching, and search reformulation falls back to rules. The Coach screen says
+which is in use rather than quietly degrading.
+
+The model is not one-shot. It gets tools and a loop — see
+[Where nutrition figures come from](#where-nutrition-figures-come-from) — but
+never the authority to decide when it is done.
 
 ## The food diary
 
@@ -126,8 +132,7 @@ there is a test that pins exactly that.
 
 ## The Watch app
 
-An independent watchOS app — no iPhone app required. Four screens on the
-vertical page stack:
+An independent watchOS app. Four screens on the vertical page stack:
 
 - **Today** — calories, macros, UK units so far, and undo
 - **Food** — frequent items first, then the catalogue by meal; long-press for a
@@ -143,6 +148,94 @@ meal syncing twice cannot be counted twice — also pinned by a test.
 
 Note that Foundation Models only reaches watchOS in watchOS 27 (via Private
 Cloud Compute), so the Watch logs and the Mac does the conversational parsing.
+
+---
+
+## Where nutrition figures come from
+
+A calorie diary is fiction unless you know which numbers are measured and which
+are guessed, so every entry carries its provenance and the UI shows it.
+
+Lookup runs as a **loop**, not a single shot:
+
+```
+        ┌──────────────────────────────────────────┐
+        ▼                                          │
+   search a food database                          │
+        │                                          │
+        ▼                                    refine the query
+   score relevance ──── irrelevant ──────────────► │   (Apple Intelligence,
+        │                                          │    or rule-based)
+        ▼                                          │
+   validate the numbers ── fails ──────────────────┤
+        │                                          │
+        ▼                                          │
+   confident enough? ── no ────────────────────────┘
+        │ yes
+        ▼
+      accept
+```
+
+The stopping condition is **deterministic**. `NutritionValidator` and a
+relevance threshold decide when an answer is good enough; the model never gets
+to declare itself finished. That is the whole safety property — otherwise a
+fluent wrong answer ends the loop, which is exactly the failure this design
+exists to prevent. The loop is bounded, never repeats a query, and keeps the
+best candidate it saw so running out of attempts still returns something useful.
+
+What the model *does* decide is what to search for next, which is a language
+problem: "chicken tikka masala at the Bengal Spice" finds nothing, and knowing
+to drop the restaurant is not something a rule does well. There is a rule-based
+refiner behind it so the loop still works without Apple Intelligence.
+
+### Validation
+
+More important than the source. Every figure is reconciled against physics:
+
+- **Atwater reconciliation** — 4 kcal/g protein and carbohydrate, 9 fat, 7
+  alcohol, 2 fibre. Both the EU convention (fibre excluded from carbohydrate)
+  and the US one (included) are tried, and the closer wins. This catches the two
+  commonest defects at once: a language model inventing a calorie count its own
+  macros don't support, and an Open Food Facts entry where someone typed
+  kilojoules into the kilocalorie field. Where the macros are sound, the energy
+  is recomputed from them.
+- **Density bounds** — nothing edible exceeds 900 kcal per 100 g, and macros
+  cannot outweigh their own serving.
+- **Cross-source agreement** — two sources agreeing raises confidence; a
+  disagreement over 25% is shown, not hidden.
+- **Relevance gating** — free-text search returns confident nonsense, so a
+  grocery database offering "tikka spice paste" for a curry is rejected on word
+  overlap before its numbers are even considered.
+
+### Coverage, honestly
+
+| What you logged | Covered? |
+| --- | --- |
+| Packaged groceries, barcodes | Yes — Open Food Facts |
+| Generic foods ("grilled chicken breast") | Yes — USDA FoodData Central (free key) |
+| Anything alcoholic | Yes — calculated exactly from volume and ABV |
+| **Pub and restaurant meals** | **No.** Chains publish nutrition as per-site HTML and PDFs; scraping them is fragile and licence-bound. This is the gap, and it is the case you log most. Those stay as validated estimates. |
+
+## Which device does what
+
+Lookup needs a language model, a network and a battery that can afford several
+round trips. The Watch has none of those, and nobody wants to wait four seconds
+to log a pint. So the log doubles as a work queue:
+
+| | Watch | iPhone | Mac |
+| --- | --- | --- | --- |
+| Log instantly | ✅ | ✅ | ✅ |
+| Apple Intelligence | ✗ until watchOS 27 | ✅ | ✅ |
+| Runs the lookup loop | ✗ | ✅ | ✅ |
+| Full analysis and charts | ✗ | ✗ | ✅ |
+
+The Watch logs against the built-in table and marks the entry `pending`.
+Whichever device next has the capability finishes it and syncs the corrected
+figures back. The queue is idempotent — two devices running at once produce the
+same answer, because resolution *replaces* an entry's numbers rather than adding
+to them, and merge prefers the better-resolved copy of an entry over the local
+one. That last rule is load-bearing: without it the phone's correction is
+silently thrown away every time the Watch's stale copy syncs back.
 
 ---
 
@@ -225,6 +318,9 @@ without Xcode:
 swift test --package-path Packages/HealthCore
 ```
 
+`Packages/HealthIntelligence` wraps Apple Intelligence and needs a real SDK, so
+it builds in Xcode rather than under a bare `swift test`.
+
 Coverage includes calendar arithmetic, export timestamp parsing, unit
 normalisation across locales, multi-source de-duplication, the XML parser
 against a fixture covering both modern and legacy workout layouts, the ZIP
@@ -236,23 +332,35 @@ idempotence of Watch↔Mac sync.
 ## Layout
 
 ```
-Packages/HealthCore/       shared by both apps; pure Swift, no UI, no platform frameworks
+Packages/HealthCore/       shared by all three apps; pure Swift, no UI, no platform frameworks
   Sources/HealthCore/
     Models/                DayKey, Metric, DailySummary, Nutrition, FoodLog, LogSync, persistence
     Import/                ZIP reader, streaming XML parser, HealthKit identifier mapping
     Analytics/             TimeSeries, TrendAnalysis, FitnessIndex, Rankings, EnergyBalance,
                            Correlation, OccasionAnalysis, FitnessNarrator
+    Nutrition/             providers, validator, resolver, the agentic loop, resolution queue
   Tests/HealthCoreTests/
-MyHealth/                  the Mac app
-  Features/                one folder per screen
-  Support/                 HealthKit source, Apple Intelligence coach, folder watching, formatting
-MyHealthWatch/             the independent watchOS app
-Config/                    entitlements for both targets
+Packages/HealthIntelligence/  the only place FoundationModels appears; shared by Mac and iPhone
+MyHealth/                  the Mac app — full analysis, charts, import
+MyHealthPhone/             the iPhone app — logging and the lookup loop
+MyHealthWatch/             the watchOS app — instant logging, no network
+Config/                    entitlements, one per target
 ```
 
 ## Privacy
 
-Nothing leaves the machine. The app is sandboxed, has no network entitlement,
-and stores its database in its own container. **Erase stored data** on the Data
-Source screen deletes MyHealth's copy only — HealthKit and your iPhone are never
-written to.
+Health data never leaves your devices. The database lives in each app's own
+container and is never uploaded.
+
+The one exception is opt-in and narrow: with **Look up food online** switched on
+(it is **off by default**), the *name* of a food you log is sent to Open Food
+Facts, and to USDA FoodData Central if you supply a key, to fetch its nutrition
+figures. That is the entire payload — a food name. Never your weight, your heart
+data, your location, your workouts, or anything about where you were. Switch it
+off and nothing leaves the device at all; the built-in table and Apple
+Intelligence's own estimates still work.
+
+Apple Intelligence runs entirely on-device.
+
+**Erase stored data** on the Data Source screen deletes MyHealth's copy only —
+HealthKit and your iPhone are never written to by it.

@@ -7,74 +7,99 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1000000000000000000B001 /* HealthCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000000000000000B003 /* HealthCore */; };
-		A1000000000000000000B002 /* HealthCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000000000000000B004 /* HealthCore */; };
+		4BB81A9BDD3AAEB6492685E6 /* HealthCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2BCE91EDC831DFCF1B1FDA5F /* HealthCore */; };
+		EFB302A69EFB63CDE4ADD94E /* HealthIntelligence in Frameworks */ = {isa = PBXBuildFile; productRef = 77B9DEAD05EF66676E9CBD7C /* HealthIntelligence */; };
+		678728170F1CC0610D8F6D12 /* HealthCore in Frameworks */ = {isa = PBXBuildFile; productRef = 65B3B65C47F6D1BBADA305FB /* HealthCore */; };
+		DFC97FE0906B3CDA926EAAD8 /* HealthIntelligence in Frameworks */ = {isa = PBXBuildFile; productRef = 22761626DF1EC9CA1C7FEABF /* HealthIntelligence */; };
+		070AF149949C272C44C59EDA /* HealthCore in Frameworks */ = {isa = PBXBuildFile; productRef = EE948AF685D79B1E2A501214 /* HealthCore */; };
+		878845C4AAAA49F21D4E53FF /* HealthIntelligence in Frameworks */ = {isa = PBXBuildFile; productRef = AACABB6070E8EB7954A3D8BF /* HealthIntelligence */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A1000000000000000000A002 /* MyHealth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyHealth.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000000000000000000A003 /* MyHealth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyHealth.entitlements; sourceTree = "<group>"; };
-		A1000000000000000000C002 /* MyHealthWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyHealthWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000000000000000000C003 /* MyHealthWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyHealthWatch.entitlements; sourceTree = "<group>"; };
+		2D28AC1558AED4275C96CBF0 /* MyHealth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyHealth.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6FE5C535014641A73F15FD8 /* MyHealth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyHealth.entitlements; sourceTree = "<group>"; };
+		4F3C505D3C60107267AB9833 /* MyHealthWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyHealthWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		56AB1D9EC9A08A41B66FD3F3 /* MyHealthWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyHealthWatch.entitlements; sourceTree = "<group>"; };
+		C0D2A5A6C7D7286E418232B0 /* MyHealthPhone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyHealthPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		842B5472E1AF572025C7B64E /* MyHealthPhone.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyHealthPhone.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A1000000000000000000A001 /* MyHealth */ = {
+		2C4601E36A28AB8535C89FFF /* MyHealth */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MyHealth;
 			sourceTree = "<group>";
 		};
-		A1000000000000000000C001 /* MyHealthWatch */ = {
+		81A93A20C1A1F48AA64A7F9C /* MyHealthWatch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MyHealthWatch;
+			sourceTree = "<group>";
+		};
+		4F77E80DD793C44DF6E5454E /* MyHealthPhone */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MyHealthPhone;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A1000000000000000000A004 /* Frameworks */ = {
+		DAEBF13423D7042F6D5D2A96 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000000000000000000B001 /* HealthCore in Frameworks */,
+				4BB81A9BDD3AAEB6492685E6 /* HealthCore in Frameworks */,
+				EFB302A69EFB63CDE4ADD94E /* HealthIntelligence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A1000000000000000000C004 /* Frameworks */ = {
+		B3B82733C17A0CC54CE92777 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000000000000000000B002 /* HealthCore in Frameworks */,
+				678728170F1CC0610D8F6D12 /* HealthCore in Frameworks */,
+				DFC97FE0906B3CDA926EAAD8 /* HealthIntelligence in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C352FD61E4606F8CCEE5B08B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				070AF149949C272C44C59EDA /* HealthCore in Frameworks */,
+				878845C4AAAA49F21D4E53FF /* HealthIntelligence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A1000000000000000000A005 = {
+		DC76E9F0C0006E8F919E0C51 = {
 			isa = PBXGroup;
 			children = (
-				A1000000000000000000A001 /* MyHealth */,
-				A1000000000000000000C001 /* MyHealthWatch */,
-				A1000000000000000000A008 /* Config */,
-				A1000000000000000000A006 /* Products */,
+				2C4601E36A28AB8535C89FFF /* MyHealth */,
+				81A93A20C1A1F48AA64A7F9C /* MyHealthWatch */,
+				4F77E80DD793C44DF6E5454E /* MyHealthPhone */,
+				6ED7EFE0FFDEE78D655E5AD6 /* Config */,
+				FBDC4F23F93125BBEEAE800C /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A1000000000000000000A006 /* Products */ = {
+		FBDC4F23F93125BBEEAE800C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A1000000000000000000A002 /* MyHealth.app */,
-				A1000000000000000000C002 /* MyHealthWatch.app */,
+				2D28AC1558AED4275C96CBF0 /* MyHealth.app */,
+				4F3C505D3C60107267AB9833 /* MyHealthWatch.app */,
+				C0D2A5A6C7D7286E418232B0 /* MyHealthPhone.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A1000000000000000000A008 /* Config */ = {
+		6ED7EFE0FFDEE78D655E5AD6 /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				A1000000000000000000A003 /* MyHealth.entitlements */,
-				A1000000000000000000C003 /* MyHealthWatch.entitlements */,
+				B6FE5C535014641A73F15FD8 /* MyHealth.entitlements */,
+				56AB1D9EC9A08A41B66FD3F3 /* MyHealthWatch.entitlements */,
+				842B5472E1AF572025C7B64E /* MyHealthPhone.entitlements */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -82,71 +107,100 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A1000000000000000000A007 /* MyHealth */ = {
+		D8FF789801310C350534D4A4 /* MyHealth */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1000000000000000000A010 /* Build configuration list for PBXNativeTarget "MyHealth" */;
+			buildConfigurationList = FA8003F4BA2A6F68954E35F5 /* Build configuration list for PBXNativeTarget "MyHealth" */;
 			buildPhases = (
-				A1000000000000000000A009 /* Sources */,
-				A1000000000000000000A004 /* Frameworks */,
-				A1000000000000000000A00A /* Resources */,
+				19612833FC4675FA84C2AF37 /* Sources */,
+				DAEBF13423D7042F6D5D2A96 /* Frameworks */,
+				15A257C71AB541C1D94886EA /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A1000000000000000000A001 /* MyHealth */,
+				2C4601E36A28AB8535C89FFF /* MyHealth */,
 			);
 			name = MyHealth;
 			packageProductDependencies = (
-				A1000000000000000000B003 /* HealthCore */,
+				2BCE91EDC831DFCF1B1FDA5F /* HealthCore */,
+				77B9DEAD05EF66676E9CBD7C /* HealthIntelligence */,
 			);
 			productName = MyHealth;
-			productReference = A1000000000000000000A002 /* MyHealth.app */;
+			productReference = 2D28AC1558AED4275C96CBF0 /* MyHealth.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A1000000000000000000C007 /* MyHealthWatch */ = {
+		3A330B6070D8BDDABEE14E8A /* MyHealthWatch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1000000000000000000C010 /* Build configuration list for PBXNativeTarget "MyHealthWatch" */;
+			buildConfigurationList = F5E32334F7B075E40BD21B50 /* Build configuration list for PBXNativeTarget "MyHealthWatch" */;
 			buildPhases = (
-				A1000000000000000000C009 /* Sources */,
-				A1000000000000000000C004 /* Frameworks */,
-				A1000000000000000000C00A /* Resources */,
+				023BE5AB7AC5F220CFA783FB /* Sources */,
+				B3B82733C17A0CC54CE92777 /* Frameworks */,
+				D3B24EF5D4D7D067813D3298 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A1000000000000000000C001 /* MyHealthWatch */,
+				81A93A20C1A1F48AA64A7F9C /* MyHealthWatch */,
 			);
 			name = MyHealthWatch;
 			packageProductDependencies = (
-				A1000000000000000000B004 /* HealthCore */,
+				65B3B65C47F6D1BBADA305FB /* HealthCore */,
+				22761626DF1EC9CA1C7FEABF /* HealthIntelligence */,
 			);
 			productName = MyHealthWatch;
-			productReference = A1000000000000000000C002 /* MyHealthWatch.app */;
+			productReference = 4F3C505D3C60107267AB9833 /* MyHealthWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		728E87D49C49DBDE16617346 /* MyHealthPhone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7493976B052A59714B694E7A /* Build configuration list for PBXNativeTarget "MyHealthPhone" */;
+			buildPhases = (
+				852B1973B9CE1A6E0A96127B /* Sources */,
+				C352FD61E4606F8CCEE5B08B /* Frameworks */,
+				281EA1147668F40C8A363AD0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4F77E80DD793C44DF6E5454E /* MyHealthPhone */,
+			);
+			name = MyHealthPhone;
+			packageProductDependencies = (
+				EE948AF685D79B1E2A501214 /* HealthCore */,
+				AACABB6070E8EB7954A3D8BF /* HealthIntelligence */,
+			);
+			productName = MyHealthPhone;
+			productReference = C0D2A5A6C7D7286E418232B0 /* MyHealthPhone.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		A1000000000000000000A00B /* Project object */ = {
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					A1000000000000000000A007 = {
+					D8FF789801310C350534D4A4 = {
 						CreatedOnToolsVersion = 16.0;
 					};
-					A1000000000000000000C007 = {
+					3A330B6070D8BDDABEE14E8A = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					728E87D49C49DBDE16617346 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
-			buildConfigurationList = A1000000000000000000A00C /* Build configuration list for PBXProject "MyHealth" */;
+			buildConfigurationList = 0D00591048F4E94E99EA44E5 /* Build configuration list for PBXProject "MyHealth" */;
 			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -154,31 +208,40 @@
 				en,
 				Base,
 			);
-			mainGroup = A1000000000000000000A005;
+			mainGroup = DC76E9F0C0006E8F919E0C51;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A1000000000000000000B005 /* XCLocalSwiftPackageReference "Packages/HealthCore" */,
+				A23980FAA430BEE1AC9C87AD /* XCLocalSwiftPackageReference "Packages/HealthCore" */,
+				B263BE8E983AC8366709F668 /* XCLocalSwiftPackageReference "Packages/HealthIntelligence" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A1000000000000000000A006 /* Products */;
+			productRefGroup = FBDC4F23F93125BBEEAE800C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A1000000000000000000A007 /* MyHealth */,
-				A1000000000000000000C007 /* MyHealthWatch */,
+				D8FF789801310C350534D4A4 /* MyHealth */,
+				3A330B6070D8BDDABEE14E8A /* MyHealthWatch */,
+				728E87D49C49DBDE16617346 /* MyHealthPhone */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A1000000000000000000A00A /* Resources */ = {
+		15A257C71AB541C1D94886EA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A1000000000000000000C00A /* Resources */ = {
+		D3B24EF5D4D7D067813D3298 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		281EA1147668F40C8A363AD0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -188,14 +251,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A1000000000000000000A009 /* Sources */ = {
+		19612833FC4675FA84C2AF37 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A1000000000000000000C009 /* Sources */ = {
+		023BE5AB7AC5F220CFA783FB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		852B1973B9CE1A6E0A96127B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -205,7 +275,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		A1000000000000000000A00D /* Debug */ = {
+		5089F4ED4C9EEEA1E3856059 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -218,16 +288,10 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -235,7 +299,7 @@
 			};
 			name = Debug;
 		};
-		A1000000000000000000A00E /* Release */ = {
+		1A8B01656E762A87999825E8 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -251,13 +315,12 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		A1000000000000000000A00F /* Debug */ = {
+		E5B6A35C925BAC1D14A0F546 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -270,7 +333,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart and workout data so it can chart your fitness over time. Nothing leaves this Mac.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -286,7 +349,7 @@
 			};
 			name = Debug;
 		};
-		A1000000000000000000A011 /* Release */ = {
+		1645AC0ACA5B8F118F609349 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -299,7 +362,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart and workout data so it can chart your fitness over time. Nothing leaves this Mac.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -315,7 +378,7 @@
 			};
 			name = Release;
 		};
-		A1000000000000000000C00F /* Debug */ = {
+		AB9FB6457AC82DC00366CF44 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -326,8 +389,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MyHealth;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your health data to show today's totals on your wrist.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they sync to the Health app and on to your Mac.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -345,7 +408,7 @@
 			};
 			name = Debug;
 		};
-		A1000000000000000000C011 /* Release */ = {
+		F1CE82F4CEEADB4E6B19281D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -356,8 +419,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MyHealth;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your health data to show today's totals on your wrist.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they sync to the Health app and on to your Mac.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -372,35 +435,104 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		A872FE0A4DB4152A85E72F37 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/MyHealthPhone.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MyHealth;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.MyHealth.phone;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D54BDF60101EB3F6C4DA1816 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/MyHealthPhone.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MyHealth;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MyHealth reads your activity, heart, workout and nutrition data so it can chart your fitness over time.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MyHealth saves the food, drink and body measurements you log so they appear in the Health app alongside everything else.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.MyHealth.phone;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A1000000000000000000A00C /* Build configuration list for PBXProject "MyHealth" */ = {
+		0D00591048F4E94E99EA44E5 /* Build configuration list for PBXProject "MyHealth" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A1000000000000000000A00D /* Debug */,
-				A1000000000000000000A00E /* Release */,
+				5089F4ED4C9EEEA1E3856059 /* Debug */,
+				1A8B01656E762A87999825E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A1000000000000000000A010 /* Build configuration list for PBXNativeTarget "MyHealth" */ = {
+		FA8003F4BA2A6F68954E35F5 /* Build configuration list for PBXNativeTarget "MyHealth" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A1000000000000000000A00F /* Debug */,
-				A1000000000000000000A011 /* Release */,
+				E5B6A35C925BAC1D14A0F546 /* Debug */,
+				1645AC0ACA5B8F118F609349 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A1000000000000000000C010 /* Build configuration list for PBXNativeTarget "MyHealthWatch" */ = {
+		F5E32334F7B075E40BD21B50 /* Build configuration list for PBXNativeTarget "MyHealthWatch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A1000000000000000000C00F /* Debug */,
-				A1000000000000000000C011 /* Release */,
+				AB9FB6457AC82DC00366CF44 /* Debug */,
+				F1CE82F4CEEADB4E6B19281D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7493976B052A59714B694E7A /* Build configuration list for PBXNativeTarget "MyHealthPhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A872FE0A4DB4152A85E72F37 /* Debug */,
+				D54BDF60101EB3F6C4DA1816 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -408,22 +540,42 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A1000000000000000000B005 /* XCLocalSwiftPackageReference "Packages/HealthCore" */ = {
+		A23980FAA430BEE1AC9C87AD /* XCLocalSwiftPackageReference "Packages/HealthCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/HealthCore;
+		};
+		B263BE8E983AC8366709F668 /* XCLocalSwiftPackageReference "Packages/HealthIntelligence" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HealthIntelligence;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A1000000000000000000B003 /* HealthCore */ = {
+		2BCE91EDC831DFCF1B1FDA5F /* HealthCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HealthCore;
 		};
-		A1000000000000000000B004 /* HealthCore */ = {
+		77B9DEAD05EF66676E9CBD7C /* HealthIntelligence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HealthIntelligence;
+		};
+		65B3B65C47F6D1BBADA305FB /* HealthCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HealthCore;
+		};
+		22761626DF1EC9CA1C7FEABF /* HealthIntelligence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HealthIntelligence;
+		};
+		EE948AF685D79B1E2A501214 /* HealthCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HealthCore;
+		};
+		AACABB6070E8EB7954A3D8BF /* HealthIntelligence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HealthIntelligence;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = A1000000000000000000A00B /* Project object */;
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
 }

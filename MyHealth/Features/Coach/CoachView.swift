@@ -1,5 +1,6 @@
 import SwiftUI
 import HealthCore
+import HealthIntelligence
 
 /// Two things live here: the written read on your fitness, and the
 /// conversational food diary.

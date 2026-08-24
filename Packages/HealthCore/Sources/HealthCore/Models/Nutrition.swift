@@ -13,6 +13,14 @@ public struct FoodEntry: Codable, Hashable, Identifiable, Sendable {
     public var servings: Double
     public var nutrition: Nutrition
     public var source: EntrySource
+    /// How far this entry has got through lookup and validation.
+    ///
+    /// Present so the log can act as a work queue across devices: the Watch
+    /// logs instantly against the built-in table and marks the entry pending,
+    /// and whichever device next has both a language model and a network
+    /// finishes the job. Optional so logs written before this existed still
+    /// decode.
+    public var resolution: ResolutionState?
 
     public enum EntrySource: String, Codable, Sendable {
         /// Chosen from the built-in food table.
@@ -29,13 +37,31 @@ public struct FoodEntry: Codable, Hashable, Identifiable, Sendable {
                 timestamp: Double,
                 servings: Double = 1,
                 nutrition: Nutrition,
-                source: EntrySource = .catalogue) {
+                source: EntrySource = .catalogue,
+                resolution: ResolutionState? = nil) {
         self.id = id
         self.name = name
         self.timestamp = timestamp
         self.servings = servings
         self.nutrition = nutrition
         self.source = source
+        self.resolution = resolution
+    }
+
+    /// True when a device with a language model and a network should take a
+    /// look at this entry.
+    public var needsResolution: Bool {
+        switch resolution {
+        case .none: return source == .naturalLanguage
+        case .pending: return true
+        case .resolved(let provenance): return provenance.needsReview
+        case .unresolvable: return false
+        }
+    }
+
+    public var provenance: NutritionProvenance? {
+        if case .resolved(let provenance) = resolution { return provenance }
+        return nil
     }
 
     public var date: Date { Date(timeIntervalSince1970: timestamp) }
@@ -43,6 +69,16 @@ public struct FoodEntry: Codable, Hashable, Identifiable, Sendable {
 
     /// Nutrition scaled by the number of servings.
     public var total: Nutrition { nutrition.scaled(by: servings) }
+}
+
+/// Where an entry has got to in the lookup pipeline.
+public enum ResolutionState: Codable, Hashable, Sendable {
+    /// Logged optimistically, waiting for a capable device to look it up.
+    case pending
+    /// Looked up and validated.
+    case resolved(NutritionProvenance)
+    /// Tried and could not be improved on; do not keep retrying it.
+    case unresolvable(reason: String)
 }
 
 /// Macronutrients for one serving.

@@ -221,3 +221,46 @@ final class ContextClassifierTests: XCTestCase {
         XCTAssertFalse(MealContext.unknown.isEatingOut)
     }
 }
+
+final class ResolutionMergeTests: XCTestCase {
+
+    private func entry(id: UUID, kcal: Double, resolution: ResolutionState?) -> FoodEntry {
+        FoodEntry(id: id, name: "curry",
+                  timestamp: DayKey.today.localDate().timeIntervalSince1970 + 12 * 3600,
+                  nutrition: Nutrition(kilocalories: kcal),
+                  source: .naturalLanguage,
+                  resolution: resolution)
+    }
+
+    func testABetterResolvedCopyWinsAMerge() throws {
+        let id = UUID()
+        let stale = FoodLog(entries: [entry(id: id, kcal: 650, resolution: .pending)])
+        let fresh = FoodLog(entries: [entry(id: id, kcal: 900, resolution: .resolved(
+            NutritionProvenance(source: .foodDataCentral, confidence: 0.9)))])
+
+        let merged = LogSync.merge(local: stale, remote: fresh)
+        XCTAssertEqual(merged.entries.count, 1)
+        XCTAssertEqual(try XCTUnwrap(merged.entries.first).nutrition.kilocalories, 900)
+    }
+
+    func testAWorseCopyDoesNotOverwriteAResolvedOne() throws {
+        let id = UUID()
+        let good = FoodLog(entries: [entry(id: id, kcal: 900, resolution: .resolved(
+            NutritionProvenance(source: .foodDataCentral, confidence: 0.9)))])
+        let stale = FoodLog(entries: [entry(id: id, kcal: 650, resolution: .pending)])
+
+        let merged = LogSync.merge(local: good, remote: stale)
+        XCTAssertEqual(try XCTUnwrap(merged.entries.first).nutrition.kilocalories, 900)
+    }
+
+    func testTheMoreConfidentOfTwoResolutionsWins() throws {
+        let id = UUID()
+        let weak = FoodLog(entries: [entry(id: id, kcal: 700, resolution: .resolved(
+            NutritionProvenance(source: .openFoodFacts, confidence: 0.5)))])
+        let strong = FoodLog(entries: [entry(id: id, kcal: 900, resolution: .resolved(
+            NutritionProvenance(source: .foodDataCentral, confidence: 0.9)))])
+
+        XCTAssertEqual(try XCTUnwrap(LogSync.merge(local: weak, remote: strong).entries.first)
+            .nutrition.kilocalories, 900)
+    }
+}

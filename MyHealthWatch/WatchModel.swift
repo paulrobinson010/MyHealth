@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import HealthCore
+import HealthIntelligence
 
 @MainActor
 final class WatchModel: ObservableObject {
@@ -12,7 +13,7 @@ final class WatchModel: ObservableObject {
     /// Set briefly after a successful log so the UI can confirm without a modal.
     @Published var confirmation: String?
 
-    private let writer = HealthKitWriter()
+    private let writer = HealthKitLogWriter()
     private let sync = LogSync(backing: UbiquitousLogStore())
     private var store: FoodLogStore?
 
@@ -44,20 +45,27 @@ final class WatchModel: ObservableObject {
     // MARK: - Logging
 
     func logFood(_ preset: FoodPreset, servings: Double) async {
+        // Straight from the built-in table, so it is already as good as it
+        // gets — no need to trouble the lookup queue with it.
         let entry = FoodEntry(name: preset.name,
                               timestamp: Date().timeIntervalSince1970,
                               servings: servings,
                               nutrition: preset.nutrition,
-                              source: .catalogue)
+                              source: .catalogue,
+                              resolution: .resolved(NutritionProvenance(source: .builtIn,
+                                                                        confidence: 0.75)))
         await record(entry, confirmation: "\(preset.name) logged")
     }
 
     func logDrink(_ preset: DrinkPreset, servings: Double) async {
+        // Alcohol from volume and ABV is arithmetic, not a lookup.
         let entry = FoodEntry(name: preset.name,
                               timestamp: Date().timeIntervalSince1970,
                               servings: servings,
                               nutrition: preset.nutrition,
-                              source: .catalogue)
+                              source: .catalogue,
+                              resolution: .resolved(NutritionProvenance(source: .computed,
+                                                                        confidence: 0.95)))
         let units = preset.ukUnits * servings
         await record(entry, confirmation: String(format: "%.1f units logged", units))
     }
@@ -66,7 +74,9 @@ final class WatchModel: ObservableObject {
         let entry = FoodEntry(name: name,
                               timestamp: Date().timeIntervalSince1970,
                               nutrition: Nutrition(kilocalories: kilocalories),
-                              source: .manual)
+                              source: .manual,
+                              resolution: .resolved(NutritionProvenance(source: .manual,
+                                                                        confidence: 0.85)))
         await record(entry, confirmation: "\(Int(kilocalories)) kcal logged")
     }
 

@@ -5,9 +5,9 @@
          <BuildActionEntry buildForTesting = "YES" buildForRunning = "YES" buildForProfiling = "YES" buildForArchiving = "YES" buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D8FF789801310C350534D4A4"
-               BuildableName = "MyHealth.app"
-               BlueprintName = "MyHealth"
+               BlueprintIdentifier = "728E87D49C49DBDE16617346"
+               BuildableName = "MyHealthPhone.app"
+               BlueprintName = "MyHealthPhone"
                ReferencedContainer = "container:MyHealth.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -21,9 +21,9 @@
       <BuildableProductRunnable runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D8FF789801310C350534D4A4"
-            BuildableName = "MyHealth.app"
-            BlueprintName = "MyHealth"
+            BlueprintIdentifier = "728E87D49C49DBDE16617346"
+            BuildableName = "MyHealthPhone.app"
+            BlueprintName = "MyHealthPhone"
             ReferencedContainer = "container:MyHealth.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -32,9 +32,9 @@
       <BuildableProductRunnable runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D8FF789801310C350534D4A4"
-            BuildableName = "MyHealth.app"
-            BlueprintName = "MyHealth"
+            BlueprintIdentifier = "728E87D49C49DBDE16617346"
+            BuildableName = "MyHealthPhone.app"
+            BlueprintName = "MyHealthPhone"
             ReferencedContainer = "container:MyHealth.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
