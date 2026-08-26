@@ -27,7 +27,7 @@ public enum HealthKitAvailability {
         case .requiresNewerMacOS:
             return "Native HealthKit access on the Mac needs macOS 26 (Tahoe) or later. You can still import an export.zip from your iPhone."
         case .unavailableOnThisDevice:
-            return "HealthKit reports no health data store on this device. Check that Health data is available and that you are signed into the same Apple Account across your devices."
+            return "HealthKit reports no health data store on this Mac. The diagnostics below say which requirement is not met."
         case .notBuiltWithHealthKit:
             return "This build was compiled without HealthKit. Rebuild with the macOS 26 SDK or later, or import an export.zip instead."
         }

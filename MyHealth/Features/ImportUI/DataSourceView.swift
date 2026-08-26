@@ -41,6 +41,10 @@ struct DataSourceView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
+                if !model.healthKitAvailability.isUsable {
+                    healthKitDiagnostics
+                }
+
                 HStack(spacing: 12) {
                     Button("Sync now") {
                         Task { await model.syncFromHealthKit() }
@@ -60,6 +64,60 @@ struct DataSourceView: View {
                     Toggle("Sync on launch", isOn: $model.autoSyncOnLaunch)
                 }
             }
+        }
+    }
+
+    /// `isHealthDataAvailable()` returning false has at least five unrelated
+    /// causes with five unrelated fixes, so show which one it actually is
+    /// rather than leaving the user with a message they cannot act on.
+    @ViewBuilder
+    private var healthKitDiagnostics: some View {
+        let checks = HealthKitDiagnostics.run()
+
+        VStack(alignment: .leading, spacing: 10) {
+            if let next = HealthKitDiagnostics.nextStep(in: checks) {
+                Text(next)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            DisclosureGroup("Diagnostics") {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(checks) { check in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: check.status.symbolName)
+                                .foregroundStyle(colour(for: check.status))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(check.title).font(.callout.weight(.medium))
+                                Text(check.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+
+                    Button("Copy diagnostics") {
+                        let board = NSPasteboard.general
+                        board.clearContents()
+                        board.setString(HealthKitDiagnostics.report(checks), forType: .string)
+                    }
+                    .buttonStyle(.link)
+                    .padding(.top, 2)
+                }
+                .padding(.top, 6)
+            }
+            .font(.callout)
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func colour(for status: HealthKitDiagnostic.Status) -> Color {
+        switch status {
+        case .ok: return .green
+        case .problem: return .orange
+        case .unknown: return .secondary
         }
     }
 
