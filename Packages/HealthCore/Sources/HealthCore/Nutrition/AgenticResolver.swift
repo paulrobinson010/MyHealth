@@ -229,12 +229,16 @@ public struct AgenticNutritionResolver: Sendable {
     }
 
     private func reason(for resolution: NutritionResolver.Resolution) -> RejectionReason {
-        if !resolution.provenance.issues.isEmpty
-            && resolution.provenance.source != .languageModel {
-            return .failedValidation(issues: resolution.provenance.issues)
-        }
-        if resolution.provenance.source == .languageModel || resolution.provenance.confidence == 0 {
+        // `matchedName` is only set when a candidate actually won, so its
+        // absence is the reliable signal that the search came back empty —
+        // more reliable than reading the provenance, which also carries an
+        // explanatory issue string in that case.
+        guard resolution.provenance.matchedName != nil,
+              resolution.provenance.source != .languageModel else {
             return .noResults
+        }
+        if !resolution.provenance.issues.isEmpty {
+            return .failedValidation(issues: resolution.provenance.issues)
         }
         return .lowConfidence(resolution.provenance.confidence)
     }

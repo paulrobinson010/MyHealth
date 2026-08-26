@@ -118,15 +118,22 @@ public struct LogSyncCoordinator: Sendable {
         }
 
         var removed = 0
+        var lostAnEntry: Set<UUID> = []
         for id in deleted {
             if entriesByID.removeValue(forKey: id) != nil { removed += 1 }
             if occasionsByID.removeValue(forKey: id) != nil { removed += 1 }
-            for key in occasionsByID.keys {
+            for key in Array(occasionsByID.keys)
+            where occasionsByID[key]?.entryIDs.contains(id) == true {
                 occasionsByID[key]?.entryIDs.removeAll { $0 == id }
+                lostAnEntry.insert(key)
             }
         }
-        // An occasion whose every entry has gone is not an occasion any more.
-        for (key, occasion) in occasionsByID where occasion.entryIDs.isEmpty {
+        // An occasion that just lost its last entry is no longer an occasion.
+        // One that has not received its entries yet is a different thing
+        // entirely: sync records arrive in any order, and dropping it would
+        // lose the venue for good — which is the one thing HealthKit cannot
+        // store and the whole reason occasions exist.
+        for key in lostAnEntry where occasionsByID[key]?.entryIDs.isEmpty == true {
             occasionsByID.removeValue(forKey: key)
         }
 

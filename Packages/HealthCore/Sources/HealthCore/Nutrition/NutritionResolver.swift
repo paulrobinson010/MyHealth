@@ -80,8 +80,11 @@ public struct NutritionResolver: Sendable {
             if gap <= 0.15 {
                 confidence = min(1, confidence * 1.15)
             } else if gap > NutritionValidator.significantDisagreement {
-                issues.append(String(format: "The estimate for this item was %.0f%% different (%.0f kcal).",
-                                     gap * 100, estimate.kilocalories))
+                // Recorded, and it costs a little confidence, but deliberately
+                // not an "issue": issues mean the figure itself is doubtful,
+                // and a looked-up value disagreeing with a guess is the guess
+                // being wrong. Filing it as an issue stopped the loop
+                // converging on exactly the lookups worth having.
                 confidence *= 0.9
             }
         }

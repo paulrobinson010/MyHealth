@@ -132,7 +132,15 @@ final class DeficitIntegrityTests: XCTestCase {
     }
 
     func testNothingLoggedAtAllSaysSoPlainly() {
-        let result = audit(goodDatabase(logEveryNthDay: 1_000), FoodLog())
+        // `logEveryNthDay` can never produce zero logged days — offset 0 always
+        // matches — so the intake has to be stripped explicitly.
+        var database = goodDatabase()
+        database.days = database.days.map { day in
+            var copy = day
+            copy.values[.dietaryEnergy] = nil
+            return copy
+        }
+        let result = audit(database, FoodLog())
         XCTAssertEqual(result.confidence, .unreliable)
         XCTAssertTrue(result.findings.contains { $0.message.contains("No food logged") })
     }
