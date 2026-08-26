@@ -6,14 +6,20 @@ import HealthKit
 
 /// Reads health data straight out of the local HealthKit store.
 ///
-/// macOS 26 (Tahoe) was the first release to make HealthKit available to Mac
-/// apps. The Mac never talks to the Watch directly — samples travel
-/// Watch → iPhone → iCloud Health sync → this Mac's HealthKit store — so the
-/// phone still has to be syncing for anything to show up here.
+/// This works on iOS, iPadOS and watchOS. It does **not** work on the Mac, and
+/// not for want of configuration: Apple lists `com.apple.developer.healthkit`
+/// as available on iOS, iPadOS and visionOS only, so the capability cannot be
+/// enabled on a macOS App ID, no provisioning profile carries the entitlement,
+/// and `isHealthDataAvailable()` returns false however the app is signed. The
+/// Mac gets its metrics from `Import from export.zip` instead.
+///
+/// The code is kept rather than `#if os` -ed away for two reasons: it is the
+/// same source the phone and watch targets compile, and if Apple does open the
+/// entitlement the Mac lights up with no change. `HealthKitDiagnostics`
+/// explains the situation in the UI rather than leaving a bare false.
 ///
 /// Everything below is compiled out when building against an SDK without
-/// HealthKit, and gated at runtime besides, so the app still builds and runs on
-/// older systems using `Import from export.zip` instead.
+/// HealthKit, and gated at runtime besides.
 public enum HealthKitAvailability {
     case available
     case requiresNewerMacOS
@@ -27,7 +33,7 @@ public enum HealthKitAvailability {
         case .requiresNewerMacOS:
             return "Native HealthKit access on the Mac needs macOS 26 (Tahoe) or later. You can still import an export.zip from your iPhone."
         case .unavailableOnThisDevice:
-            return "HealthKit reports no health data store on this Mac. The diagnostics below say which requirement is not met."
+            return "HealthKit has no data store on this device. On the Mac this is expected — the entitlement is not offered for macOS App IDs."
         case .notBuiltWithHealthKit:
             return "This build was compiled without HealthKit. Rebuild with the macOS 26 SDK or later, or import an export.zip instead."
         }

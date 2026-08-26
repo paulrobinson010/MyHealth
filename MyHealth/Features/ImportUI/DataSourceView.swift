@@ -36,7 +36,7 @@ struct DataSourceView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("macOS 26 (Tahoe) was the first release to give Mac apps HealthKit access. The Mac does not talk to your Apple Watch directly — data travels Watch → iPhone → iCloud Health sync → this Mac, so your iPhone still needs to be syncing.")
+                Text("Apple lists the HealthKit entitlement as iOS, iPadOS and visionOS only, so it cannot be enabled on a macOS App ID and there is no health store on the Mac to read. Use Health export file below, or the iPhone and iPad apps, which do read HealthKit directly.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

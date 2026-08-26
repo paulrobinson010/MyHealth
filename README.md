@@ -14,23 +14,27 @@ everything stays in `~/Library/Application Support/MyHealth`.
 
 There are two paths, and the app supports both.
 
-### 1. Native HealthKit (macOS 26 Tahoe or later)
+### 1. Native HealthKit — iPhone, iPad and Watch only
 
-macOS 26 was the first release to give Mac apps HealthKit access. The Mac does
-not talk to your Apple Watch directly — data travels
-**Watch → iPhone → iCloud Health sync → this Mac's HealthKit store** — so your
-iPhone still has to be syncing for anything to be there.
+HealthKit reads live data on iOS, iPadOS and watchOS. **It does not work on the
+Mac**, and this is a platform limit rather than a configuration problem:
+Apple lists `com.apple.developer.healthkit` as available on iOS, iPadOS and
+visionOS only, so the capability cannot be enabled on a macOS App ID, the
+provisioning profile never carries the entitlement, and
+`HKHealthStore.isHealthDataAvailable()` returns `false` no matter how the Mac
+app is signed. The HealthKit code paths are compiled and kept for the day that
+changes; Data Source → Diagnostics in the Mac app reports exactly which
+requirement is unmet.
 
-Press **Sync** in the toolbar (⌘R). The app asks for read permission and pulls
-daily statistics, activity rings, sleep and workouts for the history window set
-in Settings.
+On iPhone, iPad and Watch, press **Sync**. The app asks for read permission and
+pulls daily statistics, activity rings, sleep and workouts for the history
+window set in Settings.
 
-**Signing:** HealthKit is a gated entitlement. In Xcode, select the `MyHealth`
-target → *Signing & Capabilities* → set your **Team**. A free Apple ID works.
-If you would rather not sign at all, switch signing to *Sign to Run Locally* and
-remove the HealthKit capability; the export path below still works.
+**Signing:** HealthKit is a gated entitlement. In Xcode, select the
+`MyHealthPhone` or `MyHealthWatch` target → *Signing & Capabilities* → set your
+**Team**, then add the **HealthKit** capability. A free Apple ID works.
 
-### 2. Health export file (any macOS version)
+### 2. Health export file (the Mac path)
 
 On your iPhone: **Health → your picture (top right) → Export All Health Data**.
 Save the resulting `export.zip` somewhere the Mac can see it — iCloud Drive is
@@ -349,9 +353,9 @@ database.
 
 ## Building
 
-Requires Xcode 16 or later. Deployment target is macOS 14; native HealthKit
-needs macOS 26 at runtime and a macOS 26 SDK at build time — without it the
-HealthKit code compiles out and the app falls back to file import.
+Requires Xcode 16 or later. Deployment target is macOS 14. The Mac app always
+uses file import for health metrics — HealthKit has no data store on macOS (see
+above) — so the HealthKit code there is inert and the app falls back to import.
 
 ```sh
 open MyHealth.xcodeproj      # then ⌘R
