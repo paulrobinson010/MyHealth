@@ -50,16 +50,16 @@ final class DayKeyTests: XCTestCase {
         XCTAssertNil(DayKey(exportPrefix: "2023-13-04 07:12:00 +0000"))
     }
 
-    func testTimestampParsingHandlesOffsets() {
-        let utc = ExportTimestamp.epochSeconds("2024-03-17 12:00:00 +0000")
+    func testTimestampParsingHandlesOffsets() throws {
+        let utc = try XCTUnwrap(ExportTimestamp.epochSeconds("2024-03-17 12:00:00 +0000"))
         XCTAssertEqual(utc, 1_710_676_800, accuracy: 0.5)
 
         // The same wall clock an hour east is an hour earlier in absolute terms.
-        let plusOne = ExportTimestamp.epochSeconds("2024-03-17 12:00:00 +0100")
-        XCTAssertEqual(plusOne! - utc!, -3600, accuracy: 0.5)
+        let plusOne = try XCTUnwrap(ExportTimestamp.epochSeconds("2024-03-17 12:00:00 +0100"))
+        XCTAssertEqual(plusOne - utc, -3600, accuracy: 0.5)
 
-        let minusFive = ExportTimestamp.epochSeconds("2024-03-17 12:00:00 -0500")
-        XCTAssertEqual(minusFive! - utc!, 18_000, accuracy: 0.5)
+        let minusFive = try XCTUnwrap(ExportTimestamp.epochSeconds("2024-03-17 12:00:00 -0500"))
+        XCTAssertEqual(minusFive - utc, 18_000, accuracy: 0.5)
 
         XCTAssertNil(ExportTimestamp.epochSeconds("garbage"))
     }

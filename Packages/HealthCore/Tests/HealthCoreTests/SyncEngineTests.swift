@@ -19,56 +19,56 @@ final class FakeBackend: SyncBackend, @unchecked Sendable {
     func accountIsAvailable() async -> Bool { accountAvailable }
 
     func push(_ records: [SyncRecord], deletions: [UUID]) async throws -> SyncToken? {
-        lock.lock(); defer { lock.unlock() }
-        pushCount += 1
-        if let failure = failNextPush {
-            failNextPush = nil
-            throw failure
+        try lock.withLock { () -> SyncToken? in
+            pushCount += 1
+            if let failure = failNextPush {
+                failNextPush = nil
+                throw failure
+            }
+            for record in records {
+                storage[record.id] = record
+                tombstones.remove(record.id)
+            }
+            for id in deletions {
+                storage.removeValue(forKey: id)
+                tombstones.insert(id)
+            }
+            version += 1
+            return nil
         }
-        for record in records {
-            storage[record.id] = record
-            tombstones.remove(record.id)
-        }
-        for id in deletions {
-            storage.removeValue(forKey: id)
-            tombstones.insert(id)
-        }
-        version += 1
-        return nil
     }
 
     func fetchChanges(since token: SyncToken?) async throws -> SyncChangeSet {
-        lock.lock(); defer { lock.unlock() }
-        fetchCount += 1
-        if let failure = failNextFetch {
-            failNextFetch = nil
-            throw failure
-        }
-        let seen = token.flatMap { Int(String(decoding: $0.data, as: UTF8.self)) } ?? 0
-        let all = Array(storage.values).sorted { $0.id.uuidString < $1.id.uuidString }
+        try lock.withLock { () -> SyncChangeSet in
+            fetchCount += 1
+            if let failure = failNextFetch {
+                failNextFetch = nil
+                throw failure
+            }
+            let seen = token.flatMap { Int(String(decoding: $0.data, as: UTF8.self)) } ?? 0
+            let all = Array(storage.values).sorted { $0.id.uuidString < $1.id.uuidString }
 
-        if let pageSize, all.count > seen + pageSize {
-            let page = Array(all[seen..<(seen + pageSize)])
-            return SyncChangeSet(changed: page, deleted: [],
-                                 token: SyncToken(data: Data("\(seen + pageSize)".utf8)),
-                                 hasMore: true)
+            if let pageSize, all.count > seen + pageSize {
+                let page = Array(all[seen..<(seen + pageSize)])
+                return SyncChangeSet(changed: page, deleted: [],
+                                     token: SyncToken(data: Data("\(seen + pageSize)".utf8)),
+                                     hasMore: true)
+            }
+            let remaining = seen < all.count ? Array(all[seen...]) : []
+            return SyncChangeSet(changed: remaining,
+                                 deleted: Array(tombstones),
+                                 token: SyncToken(data: Data("\(all.count)".utf8)),
+                                 hasMore: false)
         }
-        let remaining = seen < all.count ? Array(all[seen...]) : []
-        return SyncChangeSet(changed: remaining,
-                             deleted: Array(tombstones),
-                             token: SyncToken(data: Data("\(all.count)".utf8)),
-                             hasMore: false)
     }
 
     /// Simulates another device writing.
     func insert(_ record: SyncRecord) {
-        lock.lock(); defer { lock.unlock() }
-        storage[record.id] = record
+        lock.withLock { storage[record.id] = record }
     }
 
     var storedCount: Int {
-        lock.lock(); defer { lock.unlock() }
-        return storage.count
+        lock.withLock { storage.count }
     }
 }
 
@@ -78,14 +78,14 @@ final class MemoryStateStore: SyncStateStore, @unchecked Sendable {
     private(set) var saveCount = 0
 
     func load() throws -> SyncState? {
-        lock.lock(); defer { lock.unlock() }
-        return state
+        lock.withLock { state }
     }
 
     func save(_ state: SyncState) throws {
-        lock.lock(); defer { lock.unlock() }
-        self.state = state
-        saveCount += 1
+        lock.withLock {
+            self.state = state
+            saveCount += 1
+        }
     }
 }
 
@@ -126,7 +126,8 @@ final class SyncEngineTests: XCTestCase {
         await engine.enqueue([record()])
         let first = await engine.sync { _, _ in 0 }
         XCTAssertFalse(first.succeeded)
-        XCTAssertEqual(await engine.pendingCount, 1, "the entry must still be queued")
+        let stillQueued = await engine.pendingCount
+        XCTAssertEqual(stillQueued, 1, "the entry must still be queued")
         XCTAssertEqual(backend.storedCount, 0)
 
         let second = await engine.sync { _, _ in 0 }
@@ -144,7 +145,8 @@ final class SyncEngineTests: XCTestCase {
         // No sync — the app dies here.
 
         let revived = SyncEngine(backend: backend, stateStore: store)
-        XCTAssertEqual(await revived.pendingCount, 1)
+        let revivedPending = await revived.pendingCount
+        XCTAssertEqual(revivedPending, 1)
         _ = await revived.sync { _, _ in 0 }
         XCTAssertEqual(backend.storedCount, 1)
     }
@@ -156,7 +158,8 @@ final class SyncEngineTests: XCTestCase {
 
         await engine.enqueue([record(id, rank: 1, payload: "estimate")])
         await engine.enqueue([record(id, rank: 4, payload: "looked-up")])
-        XCTAssertEqual(await engine.pendingCount, 1, "one entry, not two versions of it")
+        let queued = await engine.pendingCount
+        XCTAssertEqual(queued, 1, "one entry, not two versions of it")
 
         _ = await engine.sync { _, _ in 0 }
         XCTAssertEqual(backend.storedCount, 1)
@@ -244,7 +247,8 @@ final class SyncEngineTests: XCTestCase {
         let result = await engine.sync { _, _ in 0 }
         XCTAssertEqual(result.error, .notSignedIn)
         XCTAssertFalse(result.error?.isTransient ?? true, "signing in is the user's job, not a retry")
-        XCTAssertEqual(await engine.pendingCount, 1)
+        let stillQueued = await engine.pendingCount
+        XCTAssertEqual(stillQueued, 1)
     }
 
     func testDeletionsPropagateAndAreNotResurrected() async {
@@ -283,7 +287,8 @@ final class SyncEngineTests: XCTestCase {
     func testRetryDelayBacksOff() async {
         let backend = FakeBackend()
         let engine = engine(backend)
-        XCTAssertEqual(await engine.retryDelay, 0)
+        let initialDelay = await engine.retryDelay
+        XCTAssertEqual(initialDelay, 0)
 
         backend.failNextPush = .networkUnavailable
         await engine.enqueue([record()])
@@ -293,15 +298,18 @@ final class SyncEngineTests: XCTestCase {
 
         backend.failNextPush = .networkUnavailable
         _ = await engine.sync { _, _ in 0 }
-        XCTAssertGreaterThan(await engine.retryDelay, afterOne)
+        let afterTwo = await engine.retryDelay
+        XCTAssertGreaterThan(afterTwo, afterOne)
     }
 
     func testASuccessfulSyncRecordsWhenItHappened() async {
         let backend = FakeBackend()
         let engine = engine(backend)
-        XCTAssertNil(await engine.lastSuccessfulSync)
+        let before = await engine.lastSuccessfulSync
+        XCTAssertNil(before)
         _ = await engine.sync { _, _ in 0 }
-        XCTAssertNotNil(await engine.lastSuccessfulSync)
+        let after = await engine.lastSuccessfulSync
+        XCTAssertNotNil(after)
     }
 }
 
@@ -443,12 +451,11 @@ final class RecordBox: @unchecked Sendable {
     private var stored: [SyncRecord] = []
 
     func store(_ records: [SyncRecord]) {
-        lock.lock(); stored = records; lock.unlock()
+        stored = records; 
     }
 
     var value: [SyncRecord] {
-        lock.lock(); defer { lock.unlock() }
-        return stored
+                return stored
     }
 }
 
@@ -457,11 +464,10 @@ final class CounterBox: @unchecked Sendable {
     private var total = 0
 
     func add(_ amount: Int) {
-        lock.lock(); total += amount; lock.unlock()
+        total += amount; 
     }
 
     var value: Int {
-        lock.lock(); defer { lock.unlock() }
-        return total
+                return total
     }
 }

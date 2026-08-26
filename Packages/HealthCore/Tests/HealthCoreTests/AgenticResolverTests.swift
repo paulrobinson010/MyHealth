@@ -61,9 +61,10 @@ final class AgenticResolverTests: XCTestCase {
         init(_ queries: [String]) { self.queries = queries }
 
         func refine(_ context: RefinementContext) async -> String? {
-            lock.lock(); defer { lock.unlock() }
-            reasons.append(context.reason)
-            return queries.isEmpty ? nil : queries.removeFirst()
+            lock.withLock { () -> String? in
+                reasons.append(context.reason)
+                return queries.isEmpty ? nil : queries.removeFirst()
+            }
         }
     }
 

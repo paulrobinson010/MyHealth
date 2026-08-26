@@ -12,10 +12,11 @@ final class StubHTTPClient: NutritionHTTPClient, @unchecked Sendable {
     convenience init(json: String) { self.init(responses: [Data(json.utf8)]) }
 
     func data(for request: URLRequest) async throws -> Data {
-        lock.lock(); defer { lock.unlock() }
-        requests.append(request)
-        if let error { throw error }
-        return responses.isEmpty ? Data("{}".utf8) : responses.removeFirst()
+        try lock.withLock { () -> Data in
+            requests.append(request)
+            if let error { throw error }
+            return responses.isEmpty ? Data("{}".utf8) : responses.removeFirst()
+        }
     }
 }
 
@@ -57,7 +58,8 @@ final class OpenFoodFactsProviderTests: XCTestCase {
                             "carbohydrates_100g": 60, "fat_100g": 8 } } ] }
         """
         let provider = OpenFoodFactsProvider(client: StubHTTPClient(json: json))
-        let facts = try XCTUnwrap(try await provider.search("porridge", limit: 5).first)
+        let results = try await provider.search("porridge", limit: 5)
+        let facts = try XCTUnwrap(results.first)
         // Half a 100 g basis.
         XCTAssertEqual(facts.perServing.kilocalories, 190, accuracy: 0.01)
         XCTAssertEqual(facts.perServing.proteinGrams, 6, accuracy: 0.01)
@@ -73,7 +75,8 @@ final class OpenFoodFactsProviderTests: XCTestCase {
                             "carbohydrates_100g": 3 } } ] }
         """
         let provider = OpenFoodFactsProvider(client: StubHTTPClient(json: json))
-        let facts = try XCTUnwrap(try await provider.search("lager", limit: 5).first)
+        let results = try await provider.search("lager", limit: 5)
+        let facts = try XCTUnwrap(results.first)
         // 568 mL at 4.5% = 20.2 g of ethanol, not 4.5 g.
         XCTAssertEqual(facts.perServing.alcoholGrams, 20.2, accuracy: 0.3)
     }
@@ -88,7 +91,8 @@ final class OpenFoodFactsProviderTests: XCTestCase {
                             "carbohydrates_100g": 12, "fat_100g": "3" } } ] }
         """
         let provider = OpenFoodFactsProvider(client: StubHTTPClient(json: json))
-        let facts = try XCTUnwrap(try await provider.search("yoghurt", limit: 5).first)
+        let results = try await provider.search("yoghurt", limit: 5)
+        let facts = try XCTUnwrap(results.first)
         XCTAssertEqual(facts.identifier, "12345", "a numeric barcode must still read as text")
         XCTAssertEqual(facts.perServing.kilocalories, 121.25, accuracy: 0.5)
         // European decimal comma.
@@ -138,7 +142,8 @@ final class FoodDataCentralProviderTests: XCTestCase {
             ] } ] }
         """
         let provider = FoodDataCentralProvider(client: StubHTTPClient(json: json), apiKey: "test")
-        let facts = try XCTUnwrap(try await provider.search("chicken breast", limit: 5).first)
+        let results = try await provider.search("chicken breast", limit: 5)
+        let facts = try XCTUnwrap(results.first)
 
         XCTAssertEqual(facts.name, "Chicken, breast, grilled")
         XCTAssertEqual(facts.identifier, "171077")

@@ -168,11 +168,10 @@ final class ProgressBox: @unchecked Sendable {
     private var storage: [ImportProgress] = []
 
     func record(_ progress: ImportProgress) {
-        lock.lock(); storage.append(progress); lock.unlock()
+        lock.withLock { storage.append(progress) }
     }
 
     var updates: [ImportProgress] {
-        lock.lock(); defer { lock.unlock() }
-        return storage
+        lock.withLock { storage }
     }
 }
