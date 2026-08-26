@@ -37,25 +37,9 @@ public enum IntelligenceAvailability: Equatable {
 /// to know whether a model exists runs nonisolated on a background task. Asking
 /// the question is not main-actor work, so it does not live there.
 public enum AppleIntelligence {
-    public static var availability: IntelligenceAvailability { AppleIntelligence.availability }
-}
-
-/// Wraps Apple's on-device language model.
-///
-/// The important rule here, enforced by the shape of the code rather than by
-/// hoping: **the model never decides anything**. Whether you are fitter is
-/// settled by `FitnessIndex` and `FitnessNarrator`, which are plain arithmetic.
-/// The model is handed those conclusions and asked to write them up nicely, and
-/// separately does the one job it is genuinely better at than code — turning
-/// "three pints and a curry" into structured nutrition.
-@MainActor
-public final class HealthCoach {
-
-    public init() {}
-
     public static var availability: IntelligenceAvailability {
         #if canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, iOS 26.0, *) {
             switch SystemLanguageModel.default.availability {
             case .available:
                 return .available
@@ -75,6 +59,22 @@ public final class HealthCoach {
         return .notBuiltWithFoundationModels
         #endif
     }
+}
+
+/// Wraps Apple's on-device language model.
+///
+/// The important rule here, enforced by the shape of the code rather than by
+/// hoping: **the model never decides anything**. Whether you are fitter is
+/// settled by `FitnessIndex` and `FitnessNarrator`, which are plain arithmetic.
+/// The model is handed those conclusions and asked to write them up nicely, and
+/// separately does the one job it is genuinely better at than code — turning
+/// "three pints and a curry" into structured nutrition.
+@MainActor
+public final class HealthCoach {
+
+    public init() {}
+
+    public static var availability: IntelligenceAvailability { AppleIntelligence.availability }
 
     // MARK: - Fitness narrative
 
