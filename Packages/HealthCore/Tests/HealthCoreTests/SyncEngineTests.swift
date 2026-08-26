@@ -179,13 +179,13 @@ final class SyncEngineTests: XCTestCase {
         backend.insert(record(rank: 2, payload: "from the watch"))
         let engine = engine(backend)
 
-        var received: [SyncRecord] = []
+        let received = RecordBox()
         let result = await engine.sync { changed, _ in
-            received = changed
+            received.store(changed)
             return 0
         }
         XCTAssertTrue(result.succeeded)
-        XCTAssertEqual(received.count, 1)
+        XCTAssertEqual(received.value.count, 1)
         XCTAssertEqual(result.pulled, 1)
     }
 
@@ -195,12 +195,12 @@ final class SyncEngineTests: XCTestCase {
         let engine = engine(backend)
 
         _ = await engine.sync { _, _ in 0 }
-        var secondRound: [SyncRecord] = []
+        let secondRound = RecordBox()
         _ = await engine.sync { changed, _ in
-            secondRound = changed
+            secondRound.store(changed)
             return 0
         }
-        XCTAssertTrue(secondRound.isEmpty, "already-seen changes must not replay")
+        XCTAssertTrue(secondRound.value.isEmpty, "already-seen changes must not replay")
     }
 
     func testPagedResultsAreFollowedToTheEnd() async {
@@ -209,13 +209,13 @@ final class SyncEngineTests: XCTestCase {
         for _ in 0..<7 { backend.insert(record()) }
         let engine = engine(backend)
 
-        var total = 0
+        let total = CounterBox()
         let result = await engine.sync { changed, _ in
-            total += changed.count
+            total.add(changed.count)
             return 0
         }
         XCTAssertTrue(result.succeeded)
-        XCTAssertEqual(total, 7)
+        XCTAssertEqual(total.value, 7)
     }
 
     func testAnExpiredTokenTriggersAFullRefetch() async {
@@ -226,13 +226,13 @@ final class SyncEngineTests: XCTestCase {
         _ = await engine.sync { _, _ in 0 }         // establishes a cursor
         backend.failNextFetch = .tokenExpired
 
-        var replayed = 0
+        let replayed = CounterBox()
         let result = await engine.sync { changed, _ in
-            replayed += changed.count
+            replayed.add(changed.count)
             return 0
         }
         XCTAssertTrue(result.succeeded)
-        XCTAssertEqual(replayed, 1, "everything should be re-read after the token is rejected")
+        XCTAssertEqual(replayed.value, 1, "everything should be re-read after the token is rejected")
     }
 
     func testBeingSignedOutIsReportedRatherThanSwallowed() async {
@@ -260,12 +260,12 @@ final class SyncEngineTests: XCTestCase {
         _ = await engine.sync { _, _ in 0 }
         XCTAssertEqual(backend.storedCount, 0)
 
-        var resurrected: [SyncRecord] = []
+        let resurrected = RecordBox()
         _ = await engine.sync { changed, _ in
-            resurrected = changed
+            resurrected.store(changed)
             return 0
         }
-        XCTAssertTrue(resurrected.isEmpty)
+        XCTAssertTrue(resurrected.value.isEmpty)
     }
 
     func testDeletingSomethingStillInTheOutboxCancelsTheUpload() async {
@@ -432,5 +432,36 @@ final class LogSyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(restored.id, original.id)
         XCTAssertEqual(restored.nutrition.kilocalories, 812)
         XCTAssertEqual(restored.provenance?.confidence, 0.77)
+    }
+}
+
+
+/// The engine's apply closure is `@Sendable`, so tests cannot capture and
+/// mutate a local `var` to observe it. These carry the observation out instead.
+final class RecordBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [SyncRecord] = []
+
+    func store(_ records: [SyncRecord]) {
+        lock.lock(); stored = records; lock.unlock()
+    }
+
+    var value: [SyncRecord] {
+        lock.lock(); defer { lock.unlock() }
+        return stored
+    }
+}
+
+final class CounterBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var total = 0
+
+    func add(_ amount: Int) {
+        lock.lock(); total += amount; lock.unlock()
+    }
+
+    var value: Int {
+        lock.lock(); defer { lock.unlock() }
+        return total
     }
 }

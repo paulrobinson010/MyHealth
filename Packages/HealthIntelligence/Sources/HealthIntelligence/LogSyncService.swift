@@ -108,16 +108,19 @@ public actor LogSyncService {
         // so a crash between applying and committing the token replays the
         // change rather than skipping it.
         let coordinator = self.coordinator
-        var applied: LogSyncCoordinator.ApplyResult?
         let snapshot = log
+        // The closure is `@Sendable` and runs inside the engine's actor, so it
+        // cannot mutate a captured `var` — the result comes back through a
+        // locked box instead.
+        let box = ApplyResultBox()
 
         let result = await engine.sync { changed, deleted in
             let outcome = coordinator.apply(changed, deleted: deleted, to: snapshot)
-            applied = outcome
+            box.store(outcome)
             return outcome.conflicts
         }
 
-        if let applied, applied.applied > 0 || applied.removed > 0 {
+        if let applied = box.value, applied.applied > 0 || applied.removed > 0 {
             // Merge rather than assign — anything logged while the sync ran
             // must survive it.
             log = LogSync.merge(local: log, remote: applied.log)
@@ -137,5 +140,20 @@ public actor LogSyncService {
 
     private func persist() {
         try? store.save(log)
+    }
+}
+
+/// Carries a result out of a `@Sendable` closure without capturing a `var`.
+final class ApplyResultBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: LogSyncCoordinator.ApplyResult?
+
+    func store(_ result: LogSyncCoordinator.ApplyResult) {
+        lock.lock(); stored = result; lock.unlock()
+    }
+
+    var value: LogSyncCoordinator.ApplyResult? {
+        lock.lock(); defer { lock.unlock() }
+        return stored
     }
 }

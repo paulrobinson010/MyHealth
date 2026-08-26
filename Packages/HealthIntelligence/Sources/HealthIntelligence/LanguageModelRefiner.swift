@@ -34,7 +34,7 @@ public struct LanguageModelRefiner: QueryRefiner {
 
     public func refine(_ context: RefinementContext) async -> String? {
         #if canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 26.0, *), HealthCoach.availability.isUsable {
+        if #available(macOS 26.0, iOS 26.0, *), AppleIntelligence.availability.isUsable {
             if let suggestion = await modelSuggestion(context) { return suggestion }
         }
         #endif
@@ -158,7 +158,7 @@ public struct ResolverFactory {
         } else {
             lines.append("Online lookups are switched off")
         }
-        lines.append(HealthCoach.availability.isUsable
+        lines.append(AppleIntelligence.availability.isUsable
                      ? "Apple Intelligence — parses what you say and refines failed searches"
                      : "Apple Intelligence unavailable — falling back to keyword matching")
         return lines

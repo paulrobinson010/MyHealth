@@ -30,6 +30,16 @@ public enum IntelligenceAvailability: Equatable {
     }
 }
 
+/// Availability check that is safe to call from anywhere.
+///
+/// Deliberately not a member of `HealthCoach`: that class is `@MainActor`, so
+/// its statics inherit main-actor isolation, and the resolver stack that needs
+/// to know whether a model exists runs nonisolated on a background task. Asking
+/// the question is not main-actor work, so it does not live there.
+public enum AppleIntelligence {
+    public static var availability: IntelligenceAvailability { AppleIntelligence.availability }
+}
+
 /// Wraps Apple's on-device language model.
 ///
 /// The important rule here, enforced by the shape of the code rather than by
@@ -228,7 +238,7 @@ public final class LoggingAgent {
 
     public init() {}
 
-    public var availability: IntelligenceAvailability { HealthCoach.availability }
+    public var availability: IntelligenceAvailability { AppleIntelligence.availability }
 
     /// Everything the model needs to ground its calorie estimates, so it leans
     /// on our table for the common things rather than inventing numbers.

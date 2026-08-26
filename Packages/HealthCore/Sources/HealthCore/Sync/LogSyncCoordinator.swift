@@ -16,10 +16,14 @@ public struct LogSyncCoordinator: Sendable {
         public let removed: Int
     }
 
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
-
     public init() {}
+
+    // JSONEncoder and JSONDecoder are classes with mutable state, so holding
+    // them would stop this struct being Sendable — and it has to be, because
+    // the sync engine hands it to a `@Sendable` closure. They are cheap enough
+    // to make per call.
+    private var encoder: JSONEncoder { JSONEncoder() }
+    private var decoder: JSONDecoder { JSONDecoder() }
 
     // MARK: - Outgoing
 
