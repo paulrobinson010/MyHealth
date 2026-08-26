@@ -82,11 +82,6 @@ public struct CloudKitSyncBackend: SyncBackend {
                 ofClass: CKServerChangeToken.self, from: $0.data)
         }
 
-        let configuration = CKFetchRecordZoneChangesOperation
-            .ZoneConfiguration(previousServerChangeToken: serverToken,
-                               resultsLimit: nil,
-                               desiredKeys: nil)
-
         do {
             let result = try await database.recordZoneChanges(inZoneWith: zoneID,
                                                               since: serverToken)
@@ -99,14 +94,14 @@ public struct CloudKitSyncBackend: SyncBackend {
 
             let deleted = result.deletions.compactMap { UUID(uuidString: $0.recordID.recordName) }
 
+            // `changeToken` is not optional on this API — the server always
+            // hands back a cursor, even when nothing changed.
             var nextToken: SyncToken?
-            if let changeToken = result.changeToken,
-               let data = try? NSKeyedArchiver.archivedData(withRootObject: changeToken,
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: result.changeToken,
                                                             requiringSecureCoding: true) {
                 nextToken = SyncToken(data: data)
             }
 
-            _ = configuration
             return SyncChangeSet(changed: changed,
                                  deleted: deleted,
                                  token: nextToken,
