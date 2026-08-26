@@ -117,7 +117,12 @@ final class AppModel: ObservableObject {
 
     private let store: HealthStore
     private var syncService: LogSyncService?
+    /// Health metrics arriving from the iPhone and iPad. This is how the Mac
+    /// sees activity at all: Apple does not publish the HealthKit entitlement
+    /// for macOS, so nothing here can read a health store directly.
+    private var metricSync: MetricSyncService?
     @Published private(set) var syncSummary = "Not synced yet"
+    @Published private(set) var metricSyncSummary = "Not synced yet"
     @Published private(set) var syncIsHealthy = true
     @Published private(set) var deficitIntegrity: DeficitIntegrity?
     private let coach = HealthCoach()
@@ -125,6 +130,10 @@ final class AppModel: ObservableObject {
     private let importService = ImportService()
     private let cancellation = CancellationFlag()
     private var folderWatcher: FolderWatcher?
+
+    /// Must match the container in `Config/*.entitlements` and in the phone
+    /// and watch models, on all three targets. They are one container.
+    static let cloudContainer = "iCloud.com.example.MyHealth"
 
     var healthKitAvailability: HealthKitAvailability { HealthKitBridge.availability }
 
@@ -160,12 +169,14 @@ final class AppModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(180))
                 guard let self else { return }
                 await self.refreshFoodLogFromSync()
+                await self.refreshHealthMetricsFromSync()
             }
         }
     }
 
     private func loadFromDisk() async {
         await loadFoodLog()
+        await openMetricSync()
         do {
             if let stored = try store.load() {
                 await apply(stored, kind: stored.sourceFileName == "HealthKit" ? .healthKit : .exportFile, persist: false)
@@ -177,27 +188,74 @@ final class AppModel: ObservableObject {
         if autoSyncOnLaunch, healthKitAvailability.isUsable, sourceKind != .sample {
             await syncFromHealthKit(silently: true)
         }
+        if autoSyncOnLaunch, sourceKind != .sample {
+            await refreshHealthMetricsFromSync()
+        }
         await resolvePendingNutrition()
     }
 
+    private func openMetricSync() async {
+        guard metricSync == nil else { return }
+        do {
+            metricSync = MetricSyncService(
+                store: store,
+                backend: CloudKitSyncBackend(containerIdentifier: Self.cloudContainer,
+                                             stream: .healthMetrics),
+                stateStore: FileSyncStateStore(
+                    fileURL: try FileSyncStateStore.url(named: "metric-sync-state.json")))
+        } catch {
+            lastError = "Could not open health data sync: \(error.localizedDescription)"
+        }
+    }
+
+    /// Pulls days and workouts read on the iPhone or iPad, and pushes anything
+    /// this Mac imported from an `export.zip` so the phone gets the deep
+    /// history it never had room to keep.
+    func refreshHealthMetricsFromSync() async {
+        guard let metricSync, sourceKind != .sample else { return }
+        _ = await metricSync.sync()
+        let status = await metricSync.status()
+        metricSyncSummary = status.summary
+
+        // HealthDatabase is not Equatable — and should not be, since
+        // `importedAt` differs on every construction. Compare what a redraw
+        // would actually depend on.
+        let incoming = await metricSync.currentDatabase
+        guard !incoming.isEmpty,
+              incoming.days != database?.days || incoming.workouts != database?.workouts
+        else { return }
+        database = incoming
+        if sourceKind == nil { sourceKind = .healthKit }
+        await analyse(incoming)
+    }
+
     private func apply(_ incoming: HealthDatabase, kind: DataSourceKind, persist: Bool) async {
-        let merged: HealthDatabase
+        var merged: HealthDatabase
         if let existing = database, kind != .sample, existing.sourceFileName != "Sample data" {
             merged = importService.merge(existing: existing, incoming: incoming)
         } else {
             merged = incoming
         }
 
+        // Persist before showing, and take what the store came back with. The
+        // sync service owns the file: letting it and an import each save their
+        // own view is how a day ends up present on screen and absent on disk.
+        // Publishing also seeds the other devices with whatever was imported —
+        // a decade of export.zip history the phone never had room to keep.
+        if persist, kind != .sample {
+            if let metricSync {
+                merged = await metricSync.publish(merged)
+            } else {
+                do { try store.save(merged) } catch {
+                    lastError = "Could not save the database: \(error.localizedDescription)"
+                }
+            }
+        }
+
         database = merged
         sourceKind = kind
         loadState = .working(fraction: 0.97, message: "Analysing…")
         await analyse(merged)
-
-        if persist, kind != .sample {
-            do { try store.save(merged) } catch {
-                lastError = "Could not save the database: \(error.localizedDescription)"
-            }
-        }
     }
 
     /// Rebuilds every derived figure. Runs off the main actor because the
@@ -277,7 +335,7 @@ final class AppModel: ObservableObject {
         do {
             let service = LogSyncService(
                 store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
-                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                backend: CloudKitSyncBackend(containerIdentifier: Self.cloudContainer),
                 stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
             syncService = service
             foodLog = await service.currentLog

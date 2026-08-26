@@ -4,27 +4,50 @@ import HealthCore
 import CloudKit
 #endif
 
-/// CloudKit-backed sync for the food log.
+/// CloudKit-backed sync, for the food log and for health metrics.
 ///
 /// Uses a dedicated record zone in the user's private database. The zone is the
 /// point: only a custom zone supports change tokens, and without those every
-/// sync would have to re-read the whole log, which is both slow and a good way
-/// to lose a race with a concurrent write.
+/// sync would have to re-read everything, which is both slow and a good way to
+/// lose a race with a concurrent write.
 ///
-/// Nothing about this touches the user's health data. The zone holds food and
-/// drink entries and their occasions — the same things that would otherwise sit
-/// in a notes app — and it lives in their own private database, which Apple
-/// cannot read and this project has no server for.
+/// **On privacy.** This does move health data — daily rollups read from
+/// HealthKit on the phone, so that the Mac, which has no health store of its
+/// own, can show them. It goes to the user's own private CloudKit database:
+/// Apple states it cannot read a private database's contents, this project has
+/// no server, and nothing is sent anywhere else. The alternative was the Mac
+/// showing nothing, since Apple does not publish the HealthKit entitlement for
+/// macOS. Whether to sync at all stays the user's choice — the app works from
+/// a local export.zip import with sync switched off.
 public struct CloudKitSyncBackend: SyncBackend {
+
+    /// One stream of records: its own zone, its own record type, and therefore
+    /// its own change token. The food log and the health metrics move at very
+    /// different rates — a meal now and then against a decade of days on first
+    /// sync — so putting them in one zone would make every meal re-page the
+    /// entire history.
+    public struct Stream: Sendable {
+        public let zoneName: String
+        public let recordType: String
+
+        public init(zoneName: String, recordType: String) {
+            self.zoneName = zoneName
+            self.recordType = recordType
+        }
+
+        public static let foodLog = Stream(zoneName: "FoodLog", recordType: "LogRecord")
+        public static let healthMetrics = Stream(zoneName: "HealthMetrics", recordType: "MetricRecord")
+    }
 
     #if canImport(CloudKit)
     private let container: CKContainer
     private let zoneID: CKRecordZone.ID
-    private let recordType = "LogRecord"
+    private let recordType: String
 
-    public init(containerIdentifier: String? = nil) {
+    public init(containerIdentifier: String? = nil, stream: Stream = .foodLog) {
         self.container = containerIdentifier.map { CKContainer(identifier: $0) } ?? .default()
-        self.zoneID = CKRecordZone.ID(zoneName: "FoodLog", ownerName: CKCurrentUserDefaultName)
+        self.zoneID = CKRecordZone.ID(zoneName: stream.zoneName, ownerName: CKCurrentUserDefaultName)
+        self.recordType = stream.recordType
     }
 
     private var database: CKDatabase { container.privateCloudDatabase }
@@ -60,18 +83,45 @@ public struct CloudKitSyncBackend: SyncBackend {
         }
         let toDelete = deletions.map { CKRecord.ID(recordName: $0.uuidString, zoneID: zoneID) }
 
-        do {
-            // `.allKeys` because a later version of an entry is meant to
-            // overwrite the earlier one wholesale — the rank comparison that
-            // decides which version wins has already happened locally.
-            _ = try await database.modifyRecords(saving: toSave,
-                                                 deleting: toDelete,
-                                                 savePolicy: .allKeys,
-                                                 atomically: false)
-        } catch {
-            throw CloudKitSyncBackend.translate(error)
+        // CloudKit rejects an oversized modify outright, and the first sync of
+        // a decade of health data is thousands of records. Batch it. Not
+        // atomic, and deliberately so: a partial push leaves the rest in the
+        // outbox, which is exactly what the engine expects.
+        for batch in CloudKitSyncBackend.batches(of: toSave, size: CloudKitSyncBackend.batchLimit) {
+            do {
+                // `.allKeys` because a later version of a record is meant to
+                // overwrite the earlier one wholesale — the rank comparison
+                // that decides which version wins has already happened locally.
+                _ = try await database.modifyRecords(saving: batch,
+                                                     deleting: [],
+                                                     savePolicy: .allKeys,
+                                                     atomically: false)
+            } catch {
+                throw CloudKitSyncBackend.translate(error)
+            }
+        }
+
+        for batch in CloudKitSyncBackend.batches(of: toDelete, size: CloudKitSyncBackend.batchLimit) {
+            do {
+                _ = try await database.modifyRecords(saving: [],
+                                                     deleting: batch,
+                                                     savePolicy: .allKeys,
+                                                     atomically: false)
+            } catch {
+                throw CloudKitSyncBackend.translate(error)
+            }
         }
         return nil
+    }
+
+    /// CloudKit's documented ceiling is 400 items per modify operation.
+    static let batchLimit = 350
+
+    static func batches<T>(of items: [T], size: Int) -> [[T]] {
+        guard !items.isEmpty else { return [] }
+        return stride(from: 0, to: items.count, by: size).map {
+            Array(items[$0..<Swift.min($0 + size, items.count)])
+        }
     }
 
     public func fetchChanges(since token: SyncToken?) async throws -> SyncChangeSet {
@@ -149,7 +199,7 @@ public struct CloudKitSyncBackend: SyncBackend {
     }
 
     #else
-    public init(containerIdentifier: String? = nil) {}
+    public init(containerIdentifier: String? = nil, stream: Stream = .foodLog) {}
     public func accountIsAvailable() async -> Bool { false }
     public func push(_ records: [SyncRecord], deletions: [UUID]) async throws -> SyncToken? {
         throw SyncError.backendFailure("CloudKit is not available in this build.")

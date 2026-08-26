@@ -18,15 +18,23 @@ final class WatchModel: ObservableObject {
     /// A watch is offline more often than not, so a log that waited on the
     /// network would be a log nobody trusts.
     private var service: LogSyncService?
-    @Published private(set) var syncSummary = ""associated
+    @Published private(set) var syncSummary = ""
 
     var today: DayKey { .today }
 
+    /// Must match `Config/*.entitlements` and the Mac and phone models.
+    static let cloudContainer = "iCloud.com.example.MyHealth"
+
+    /// The watch deliberately does not publish HealthKit rollups. Its store is
+    /// a subset of the phone's, reading a long history on it is slow and
+    /// expensive, and two publishers disagreeing about the same day is a class
+    /// of bug worth not having. It logs food, drink and body measurements —
+    /// which the phone cannot observe — and lets the phone publish the rest.
     func start() async {
         do {
             let service = LogSyncService(
                 store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
-                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                backend: CloudKitSyncBackend(containerIdentifier: WatchModel.cloudContainer),
                 stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
             self.service = service
             log = await service.currentLog

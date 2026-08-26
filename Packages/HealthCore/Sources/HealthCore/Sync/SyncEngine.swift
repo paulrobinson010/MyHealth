@@ -5,9 +5,19 @@ import Foundation
 /// Deliberately opaque: the engine never interprets a payload, which keeps the
 /// sync state machine testable without any model types in the way.
 public struct SyncRecord: Codable, Hashable, Sendable {
+    /// Decoding an unknown kind yields nil rather than throwing, so a device
+    /// running an older build skips records it does not understand instead of
+    /// failing the whole sync. That is what makes adding a case here safe.
     public enum Kind: String, Codable, Sendable {
         case entry
         case occasion
+        /// One calendar day of HealthKit metrics, read on a device that has a
+        /// health store — which the Mac does not.
+        case dailySummary
+        case workout
+        /// Height, sex and year of birth. One record, so basal-rate estimates
+        /// agree across devices.
+        case profile
     }
 
     public let id: UUID
@@ -322,6 +332,19 @@ public struct FileSyncStateStore: SyncStateStore {
         let folder = base.appendingPathComponent("MyHealth", isDirectory: true)
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder.appendingPathComponent("sync-state.json")
+    }
+
+    /// Each sync stream needs its own token and outbox: the food log and the
+    /// health metrics live in different CloudKit zones and advance at
+    /// different rates, so sharing one state file would have each stream
+    /// clobbering the other's cursor.
+    public static func url(named name: String, fileManager: FileManager = .default) throws -> URL {
+        let base = try fileManager.url(for: .applicationSupportDirectory,
+                                       in: .userDomainMask,
+                                       appropriateFor: nil, create: true)
+        let folder = base.appendingPathComponent("MyHealth", isDirectory: true)
+        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent(name)
     }
 
     public func load() throws -> SyncState? {

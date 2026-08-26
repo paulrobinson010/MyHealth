@@ -22,7 +22,13 @@ final class PhoneModel: ObservableObject {
 
     /// Durable local write first, iCloud after — never the other way round.
     private var service: LogSyncService?
+    /// Publishes HealthKit rollups for the Mac, which has no health store of
+    /// its own and cannot be given one. The phone is the authoritative reader:
+    /// its HealthKit store already aggregates every device, so the watch
+    /// deliberately does not publish and cannot contradict it.
+    private var metricSync: MetricSyncService?
     @Published private(set) var syncSummary = "Not synced yet"
+    @Published private(set) var metricSyncSummary = "Not synced yet"
     @Published private(set) var syncIsHealthy = true
     @Published private(set) var integrity: DeficitIntegrity?
     @Published private(set) var energy: EnergyBalanceReport?
@@ -46,14 +52,24 @@ final class PhoneModel: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// Must match `Config/*.entitlements` and the Mac and watch models.
+    static let cloudContainer = "iCloud.com.example.MyHealth"
+
     func start() async {
         do {
             let service = LogSyncService(
                 store: FoodLogStore(fileURL: try FoodLogStore.defaultURL()),
-                backend: CloudKitSyncBackend(containerIdentifier: "iCloud.com.example.MyHealth"),
+                backend: CloudKitSyncBackend(containerIdentifier: Self.cloudContainer),
                 stateStore: FileSyncStateStore(fileURL: try FileSyncStateStore.defaultURL()))
             self.service = service
             log = await service.currentLog
+
+            metricSync = MetricSyncService(
+                store: HealthStore(fileURL: try HealthStore.defaultURL()),
+                backend: CloudKitSyncBackend(containerIdentifier: Self.cloudContainer,
+                                             stream: .healthMetrics),
+                stateStore: FileSyncStateStore(
+                    fileURL: try FileSyncStateStore.url(named: "metric-sync-state.json")))
         } catch {
             lastError = "Could not open the local log: \(error.localizedDescription)"
         }
@@ -115,9 +131,45 @@ final class PhoneModel: ObservableObject {
             energy = report
             integrity = DeficitAudit.audit(report: report, log: log,
                                            database: combined, range: range)
+            // Publish the raw HealthKit read, not `combined` — the food log
+            // already syncs on its own stream, and sending the derived
+            // nutrition metrics too would have the Mac count them twice.
+            await publishHealthMetrics(database)
         } catch {
             // Not fatal — logging still works without the balance view.
             energy = nil
+        }
+    }
+
+    // MARK: - Publishing health metrics
+
+    /// Queues the days that actually changed and pushes them.
+    ///
+    /// `publish` merges into what is already held and returns only the deltas,
+    /// so a routine 90-day read costs one or two records rather than ninety.
+    private func publishHealthMetrics(_ database: HealthDatabase) async {
+        guard let metricSync else { return }
+        _ = await metricSync.publish(database)
+        _ = await metricSync.sync()
+        metricSyncSummary = await metricSync.status().summary
+    }
+
+    /// Reads further back than the rolling window and publishes it, so a Mac
+    /// that has never seen an `export.zip` still gets real history. Slow and
+    /// battery-hungry, so it is a deliberate action rather than automatic.
+    func backfillHealthHistory(years: Int = 10) async {
+        guard HealthKitSource.availability.isUsable else {
+            lastError = HealthKitSource.availability.message
+            return
+        }
+        let source = HealthKitSource()
+        do {
+            try await source.requestAuthorization()
+            let start = DayKey.today.adding(days: -365 * max(1, years))
+            let database = try await source.buildDatabase(from: start)
+            await publishHealthMetrics(database)
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 

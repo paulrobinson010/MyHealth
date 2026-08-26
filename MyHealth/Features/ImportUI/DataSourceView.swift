@@ -13,8 +13,9 @@ struct DataSourceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.gridSpacing) {
                 Text("Data Source").font(.title2.weight(.semibold))
-                healthKitCard
+                metricSyncCard
                 importCard
+                healthKitCard
                 watchedFolderCard
                 statusCard
             }
@@ -118,6 +119,26 @@ struct DataSourceView: View {
         case .ok: return .green
         case .problem: return .orange
         case .unknown: return .secondary
+        }
+    }
+
+    /// The Mac's actual live path. Worth its own panel rather than a line in
+    /// Settings: it is the only way activity reaches this machine.
+    private var metricSyncCard: some View {
+        Card("Health data from iPhone", subtitle: "Steps, energy, heart and workouts, over your private iCloud database") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(model.metricSyncSummary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Your iPhone and iPad can read HealthKit; this Mac cannot. They publish one record per day — rollups, never raw samples — into your own private CloudKit database, and this Mac reads them. Anything you import here from an export.zip goes back the same way.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button("Sync now") { Task { await model.refreshHealthMetricsFromSync() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.loadState.isWorking)
+            }
         }
     }
 
@@ -273,6 +294,16 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            Section {
+                LabeledContent("Health data") { Text(model.metricSyncSummary) }
+                Button("Sync now") { Task { await model.refreshHealthMetricsFromSync() } }
+            } header: {
+                Text("Health data sync")
+            } footer: {
+                Text("Steps, energy, heart data and workouts are read on your iPhone and iPad, which have a HealthKit store, and travel here through your private iCloud database. This Mac cannot read HealthKit itself — Apple does not offer the entitlement for macOS. Anything imported here from an export.zip is published back the same way, so the phone gets history it never had room to keep.")
+                .font(.caption)
+            }
+
             Section("Automatic import") {
                 if let folder = model.watchedFolderURL {
                     LabeledContent("Watched folder") {
@@ -296,7 +327,7 @@ struct SettingsView: View {
             } header: {
                 Text("Food log sync")
             } footer: {
-                Text("Entries are saved on this Mac the instant you log them and uploaded afterwards, so losing connection never loses one. Only the food log syncs through iCloud — your health data comes from HealthKit on each device.")
+                Text("Entries are saved on this Mac the instant you log them and uploaded afterwards, so losing connection never loses one.")
                 .font(.caption)
             }
 
