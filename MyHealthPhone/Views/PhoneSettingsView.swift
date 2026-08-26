@@ -36,7 +36,7 @@ struct PhoneSettingsView: View {
                         Text("iCloud")
                         Spacer()
                         Text(model.syncSummary)
-                            .foregroundStyle(model.syncIsHealthy ? .secondary : .orange)
+                            .foregroundStyle(model.syncIsHealthy ? Color.secondary : Color.orange)
                             .multilineTextAlignment(.trailing)
                     }
                     Button("Sync now") { Task { await model.refreshAndResolve() } }

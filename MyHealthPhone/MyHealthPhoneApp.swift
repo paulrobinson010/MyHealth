@@ -120,7 +120,7 @@ struct SyncStatusBar: View {
                 .lineLimit(2)
             Spacer()
         }
-        .foregroundStyle(model.syncIsHealthy ? .secondary : .orange)
+        .foregroundStyle(model.syncIsHealthy ? Color.secondary : Color.orange)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
     }

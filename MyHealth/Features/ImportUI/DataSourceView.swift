@@ -231,7 +231,7 @@ struct SettingsView: View {
             Section {
                 LabeledContent("iCloud") {
                     Text(model.syncSummary)
-                        .foregroundStyle(model.syncIsHealthy ? .secondary : .orange)
+                        .foregroundStyle(model.syncIsHealthy ? Color.secondary : Color.orange)
                 }
                 Button("Sync now") { Task { await model.refreshFoodLogFromSync() } }
                 Button("Re-upload everything") { Task { await model.fullResync() } }
